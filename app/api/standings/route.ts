@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchLeagueData, mapSleeperDataToTeams, Team, getCacheConfig, isInSeason } from '@/lib/sleeper';
 import { applyRankings } from '@/lib/sort';
 
+// Forçar rota dinâmica para evitar problemas de renderização estática
+export const dynamic = 'force-dynamic';
+
 // Interface para resposta da API
 interface StandingsResponse {
   leagueId: string;

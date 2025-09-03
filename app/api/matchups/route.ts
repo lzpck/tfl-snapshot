@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { pairTopXvsTopX, pairDynasty, isValidWeekForLeague, getMatchupRule, MatchupView } from '@/lib/matchups';
 import { Team, getCacheConfig, isInSeason } from '@/lib/sleeper';
 
+// Forçar rota dinâmica para evitar problemas de renderização estática
+export const dynamic = 'force-dynamic';
+
 // IDs das ligas configurados no ambiente
 const LEAGUE_ID_REDRAFT = process.env.LEAGUE_ID_REDRAFT!;
 const LEAGUE_ID_DYNASTY = process.env.LEAGUE_ID_DYNASTY!;
