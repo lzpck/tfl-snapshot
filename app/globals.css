@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Reset básico */
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Tema Light (padrão) */
+:root {
+  --bg: #ffffff;
+  --surface: #f8fafc;
+  --surface-hover: #f1f5f9;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --border: #e2e8f0;
+  --border-muted: #f1f5f9;
+}
+
+/* Tema Dark (inspirado no Sleeper) */
+.dark {
+  --bg: #0B0F14;
+  --surface: #141A22;
+  --surface-hover: #1e2832;
+  --text: #E6EDF3;
+  --text-muted: #8b949e;
+  --accent: #8B9FFF;
+  --accent-hover: #a5b4ff;
+  --border: #30363d;
+  --border-muted: #21262d;
+}
+
+/* Aplicar cores ao body */
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Scrollbar customizada para dark mode */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}

@@ -1,0 +1,13 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="96" fill="#3b82f6"/>
+  <rect x="128" y="192" width="256" height="32" rx="4" fill="white"/>
+  <rect x="128" y="256" width="256" height="32" rx="4" fill="white"/>
+  <rect x="128" y="320" width="192" height="32" rx="4" fill="white"/>
+  <circle cx="352" cy="160" r="48" fill="#10b981"/>
+  <text x="256" y="448" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="64" font-weight="bold">TFL Snapshot</text>
+  <rect x="160" y="128" width="192" height="24" rx="4" fill="#fbbf24"/>
+  <path d="M200 80c0-8.837 7.163-16 16-16h80c8.837 0 16 7.163 16 16v32H200V80z" fill="#ef4444"/>
+  <circle cx="216" cy="96" r="8" fill="white"/>
+  <circle cx="256" cy="96" r="8" fill="white"/>
+  <circle cx="296" cy="96" r="8" fill="white"/>
+</svg>
