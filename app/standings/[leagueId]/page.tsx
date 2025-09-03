@@ -198,6 +198,9 @@ export default function StandingsPage() {
                   W-L-T
                 </th>
                 <th className="px-3 py-3 text-center text-xs font-medium text-text-muted uppercase tracking-wider bg-surface-hover">
+                  PCT
+                </th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-text-muted uppercase tracking-wider bg-surface-hover">
                   PF
                 </th>
                 <th className="px-3 py-3 text-center text-xs font-medium text-text-muted uppercase tracking-wider bg-surface-hover">
@@ -245,6 +248,13 @@ export default function StandingsPage() {
                     </td>
                     <td className="px-3 py-4 whitespace-nowrap text-center text-sm text-text">
                       {team.wins}-{team.losses}{team.ties > 0 && `-${team.ties}`}
+                    </td>
+                    <td className="px-3 py-4 whitespace-nowrap text-center text-sm text-text font-medium">
+                      {(() => {
+                        const totalGames = team.wins + team.losses + team.ties;
+                        const winPercentage = totalGames > 0 ? (team.wins / totalGames) : 0;
+                        return winPercentage.toFixed(3);
+                      })()}
                     </td>
                     <td className="px-3 py-4 whitespace-nowrap text-center text-sm text-text">
                       {team.pointsFor ? team.pointsFor.toFixed(1) : '0.0'}
