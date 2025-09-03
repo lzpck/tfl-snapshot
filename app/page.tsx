@@ -39,18 +39,24 @@ export default function HomePage() {
             <p className="text-white/90 mb-4">
               {league.description}
             </p>
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <Link
                 href={`/standings/${league.id}`}
-                className="flex-1 bg-white/20 hover:bg-white/30 rounded-lg px-4 py-2 text-center text-sm font-medium transition-colors backdrop-blur-sm"
+                className="flex-1 bg-white/20 hover:bg-white/30 rounded-lg px-3 py-2 text-center text-sm font-medium transition-colors backdrop-blur-sm"
               >
                 Standings
               </Link>
               <Link
                 href={`/matchups/${league.id}`}
-                className="flex-1 bg-white/20 hover:bg-white/30 rounded-lg px-4 py-2 text-center text-sm font-medium transition-colors backdrop-blur-sm"
+                className="flex-1 bg-white/20 hover:bg-white/30 rounded-lg px-3 py-2 text-center text-sm font-medium transition-colors backdrop-blur-sm"
               >
                 Matchups
+              </Link>
+              <Link
+                href={`/history/${league.id === (process.env.LEAGUE_ID_REDRAFT || '1180180342143975424') ? 'redraft' : 'dynasty'}`}
+                className="flex-1 bg-white/20 hover:bg-white/30 rounded-lg px-3 py-2 text-center text-sm font-medium transition-colors backdrop-blur-sm"
+              >
+                Histórico
               </Link>
             </div>
           </div>

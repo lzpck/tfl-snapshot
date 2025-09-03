@@ -52,6 +52,20 @@ export default function StandingsPage() {
         
         const standingsData = await response.json();
         
+        // Debug: Verificar dados recebidos da API de standings
+        console.log('=== DEBUG STANDINGS ===');
+        console.log('League ID:', leagueId);
+        console.log('Dados completos:', standingsData);
+        
+        if (standingsData.teams && standingsData.teams.length > 0) {
+          console.log('Total de times:', standingsData.teams.length);
+          console.log('Primeiros 5 times:');
+          standingsData.teams.slice(0, 5).forEach((team: Team, index: number) => {
+            console.log(`  ${index + 1}. ${team.displayName} (rank: ${team.rank}, rosterId: ${team.rosterId})`);
+          });
+        }
+        console.log('=== FIM DEBUG STANDINGS ===');
+        
         if (isMounted) {
           setData(standingsData);
         }

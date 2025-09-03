@@ -46,6 +46,14 @@ export async function GET(request: NextRequest) {
     // O cache é automaticamente aplicado baseado na temporada
     const { league, users, rosters } = await fetchLeagueData(leagueId, true);
     
+    // Verificar se a liga foi encontrada
+    if (!league) {
+      return NextResponse.json(
+        { error: 'Liga não encontrada ou dados indisponíveis' },
+        { status: 404 }
+      );
+    }
+    
     // Mapear dados para o formato interno
     const teamsWithoutRank = mapSleeperDataToTeams(users, rosters);
     

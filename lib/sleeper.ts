@@ -161,13 +161,44 @@ export async function fetchLeagueData(leagueId: string, useCache = true) {
     cacheKey: `league-${leagueId}`
   } : {};
   
-  const [league, users, rosters] = await Promise.all([
-    fetchJSON<SleeperLeague>(`${baseUrl}/league/${leagueId}`, cacheOptions),
-    fetchJSON<SleeperUser[]>(`${baseUrl}/league/${leagueId}/users`, cacheOptions),
-    fetchJSON<SleeperRoster[]>(`${baseUrl}/league/${leagueId}/rosters`, cacheOptions)
-  ]);
-  
-  return { league, users, rosters };
+  try {
+    const [league, users, rosters] = await Promise.all([
+      fetchJSON<SleeperLeague>(`${baseUrl}/league/${leagueId}`, cacheOptions),
+      fetchJSON<SleeperUser[]>(`${baseUrl}/league/${leagueId}/users`, cacheOptions),
+      fetchJSON<SleeperRoster[]>(`${baseUrl}/league/${leagueId}/rosters`, cacheOptions)
+    ]);
+    
+    // Validar dados retornados
+    if (!league) {
+      throw new Error(`Liga não encontrada: ${leagueId}`);
+    }
+    
+    // Garantir que users e rosters são arrays válidos
+    const validUsers = Array.isArray(users) ? users : [];
+    const validRosters = Array.isArray(rosters) ? rosters : [];
+    
+    if (validUsers.length === 0) {
+      console.warn(`Nenhum usuário encontrado para a liga ${leagueId}`);
+    }
+    
+    if (validRosters.length === 0) {
+      console.warn(`Nenhum roster encontrado para a liga ${leagueId}`);
+    }
+    
+    return { 
+      league, 
+      users: validUsers, 
+      rosters: validRosters 
+    };
+  } catch (error) {
+    console.error(`Erro ao buscar dados da liga ${leagueId}:`, error);
+    // Retornar dados vazios em caso de erro para evitar quebrar a aplicação
+    return {
+      league: null,
+      users: [],
+      rosters: []
+    };
+  }
 }
 
 // Mapeia dados do Sleeper para o formato interno
@@ -175,33 +206,58 @@ export function mapSleeperDataToTeams(
   users: SleeperUser[],
   rosters: SleeperRoster[]
 ): Omit<Team, 'rank'>[] {
+  // Validação de entrada - garantir que users é um array
+  if (!Array.isArray(users)) {
+    console.warn('Users não é um array:', users);
+    users = [];
+  }
+  
+  // Validação de entrada - garantir que rosters é um array
+  if (!Array.isArray(rosters)) {
+    console.warn('Rosters não é um array:', rosters);
+    return [];
+  }
+  
   // Cria mapa de owner_id -> display_name
   const userMap = new Map<string, string>();
   users.forEach(user => {
-    userMap.set(user.user_id, user.display_name || user.username || 'Desconhecido');
+    if (user && user.user_id) {
+      const displayName = user.display_name || user.username || 'Desconhecido';
+      userMap.set(user.user_id, displayName);
+    }
   });
   
-  return rosters.map(roster => {
-    const displayName = userMap.get(roster.owner_id) || 'Desconhecido';
-    
-    // Calcula streak (simplificado - apenas mostra W/L baseado no último resultado)
-    const totalGames = roster.settings.wins + roster.settings.losses + roster.settings.ties;
-    let streak = '-';
-    if (totalGames > 0) {
-      // Simplificado: assume que o último jogo foi uma vitória se wins > losses
-      streak = roster.settings.wins >= roster.settings.losses ? 'W1' : 'L1';
-    }
-    
-    return {
-      rosterId: roster.roster_id,
-      ownerId: roster.owner_id,
-      displayName,
-      wins: roster.settings.wins,
-      losses: roster.settings.losses,
-      ties: roster.settings.ties,
-      pointsFor: roster.settings.fpts ? Math.round(roster.settings.fpts * 100) / 100 : 0,
-      pointsAgainst: roster.settings.fpts_against ? Math.round(roster.settings.fpts_against * 100) / 100 : 0,
-      streak
-    };
-  });
+  return rosters
+    .filter(roster => roster && roster.roster_id !== undefined) // Filtrar rosters inválidos
+    .map(roster => {
+      const displayName = userMap.get(roster.owner_id) || 'Desconhecido';
+      
+      // Validar se settings existe e tem as propriedades necessárias
+      const settings = roster.settings || {};
+      const wins = settings.wins || 0;
+      const losses = settings.losses || 0;
+      const ties = settings.ties || 0;
+      const fpts = settings.fpts || 0;
+      const fpts_against = settings.fpts_against || 0;
+      
+      // Calcula streak (simplificado - apenas mostra W/L baseado no último resultado)
+      const totalGames = wins + losses + ties;
+      let streak = '-';
+      if (totalGames > 0) {
+        // Simplificado: assume que o último jogo foi uma vitória se wins > losses
+        streak = wins >= losses ? 'W1' : 'L1';
+      }
+      
+      return {
+        rosterId: roster.roster_id,
+        ownerId: roster.owner_id || 'unknown',
+        displayName,
+        wins,
+        losses,
+        ties,
+        pointsFor: fpts ? Math.round(fpts * 100) / 100 : 0,
+        pointsAgainst: fpts_against ? Math.round(fpts_against * 100) / 100 : 0,
+        streak
+      };
+    });
 }
