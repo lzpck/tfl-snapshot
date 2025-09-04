@@ -48,6 +48,39 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* Estilos para o widget do Twitter */
+.twitter-timeline {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 400px;
+}
+
+/* Responsividade para o widget do Twitter */
+@media (max-width: 1024px) {
+  .twitter-timeline {
+    height: 350px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .twitter-timeline {
+    height: 300px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .twitter-timeline {
+    height: 250px !important;
+  }
+}
+
+/* Garantir que o iframe do Twitter seja responsivo */
+iframe[id^="twitter-widget"] {
+  width: 100% !important;
+  max-width: 100% !important;
+  border-radius: 0.375rem;
+}
+
 /* Scrollbar customizada para dark mode */
 .dark ::-webkit-scrollbar {
   width: 8px;

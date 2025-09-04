@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import TwitterWidget from './components/TwitterWidget';
 
 export default function HomePage() {
   const leagues = [
@@ -27,40 +28,48 @@ export default function HomePage() {
         </p>
       </div>
       
-      <div className="grid gap-6 md:grid-cols-2 max-w-4xl mx-auto">
-        {leagues.map((league) => (
-          <div
-            key={league.id}
-            className={`bg-gradient-to-br ${league.gradient} text-white rounded-lg p-6 border border-border-muted hover:scale-105 transition-all duration-200 shadow-lg`}
-          >
-            <h3 className="text-xl font-bold mb-2">
-              {league.name}
-            </h3>
-            <p className="text-white/90 mb-4">
-              {league.description}
-            </p>
-            <div className="flex gap-2">
-              <Link
-                href={`/standings/${league.id}`}
-                className="flex-1 bg-white/20 hover:bg-white/30 rounded-lg px-3 py-2 text-center text-sm font-medium transition-colors backdrop-blur-sm"
-              >
-                Standings
-              </Link>
-              <Link
-                href={`/matchups/${league.id}`}
-                className="flex-1 bg-white/20 hover:bg-white/30 rounded-lg px-3 py-2 text-center text-sm font-medium transition-colors backdrop-blur-sm"
-              >
-                Matchups
-              </Link>
-              <Link
-                href={`/history/${league.id === (process.env.LEAGUE_ID_REDRAFT || '1180180342143975424') ? 'redraft' : 'dynasty'}`}
-                className="flex-1 bg-white/20 hover:bg-white/30 rounded-lg px-3 py-2 text-center text-sm font-medium transition-colors backdrop-blur-sm"
-              >
-                Histórico
-              </Link>
+      {/* Seção das Ligas */}
+      <div className="max-w-4xl mx-auto mb-8">
+        <div className="grid gap-6 md:grid-cols-2">
+          {leagues.map((league) => (
+            <div
+              key={league.id}
+              className={`bg-gradient-to-br ${league.gradient} text-white rounded-lg p-6 border border-border-muted hover:scale-105 transition-all duration-200 shadow-lg`}
+            >
+              <h3 className="text-xl font-bold mb-2">
+                {league.name}
+              </h3>
+              <p className="text-white/90 mb-4">
+                {league.description}
+              </p>
+              <div className="flex gap-2">
+                <Link
+                  href={`/standings/${league.id}`}
+                  className="flex-1 bg-white/20 hover:bg-white/30 rounded-lg px-3 py-2 text-center text-sm font-medium transition-colors backdrop-blur-sm"
+                >
+                  Standings
+                </Link>
+                <Link
+                  href={`/matchups/${league.id}`}
+                  className="flex-1 bg-white/20 hover:bg-white/30 rounded-lg px-3 py-2 text-center text-sm font-medium transition-colors backdrop-blur-sm"
+                >
+                  Matchups
+                </Link>
+                <Link
+                  href={`/history/${league.id === (process.env.LEAGUE_ID_REDRAFT || '1180180342143975424') ? 'redraft' : 'dynasty'}`}
+                  className="flex-1 bg-white/20 hover:bg-white/30 rounded-lg px-3 py-2 text-center text-sm font-medium transition-colors backdrop-blur-sm"
+                >
+                  Histórico
+                </Link>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+      </div>
+      
+      {/* Widget do Twitter */}
+      <div className="max-w-2xl mx-auto">
+        <TwitterWidget />
       </div>
     </div>
   );

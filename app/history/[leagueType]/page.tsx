@@ -35,6 +35,7 @@ interface SeasonData {
   bracket?: {
     finalRound: number;
   };
+  note?: string; // Observação adicional para dados históricos
 }
 
 interface HistoryData {
@@ -267,6 +268,15 @@ export default function HistoryPage() {
                       ⚠️ Playoffs não encontrados para esta temporada
                     </p>
                   )}
+                </div>
+              )}
+              
+              {/* Exibir observação se existir */}
+              {season.note && (
+                <div className="mt-3 pt-3 border-t border-white/20">
+                  <p className="text-white/70 text-xs italic">
+                    📝 {season.note}
+                  </p>
                 </div>
               )}
             </div>
