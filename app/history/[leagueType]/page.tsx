@@ -131,7 +131,7 @@ export default function HistoryPage() {
     return (
       <div className="text-center py-12">
         <h1 className="text-2xl font-bold text-text mb-4">Tipo de Liga Inválido</h1>
-        <p className="text-text-muted mb-6">O tipo de liga deve ser "redraft" ou "dynasty".</p>
+        <p className="text-text-muted mb-6">O tipo de liga deve ser &quot;redraft&quot; ou &quot;dynasty&quot;.</p>
         <Link
           href="/"
           className="bg-accent hover:bg-accent-hover text-white px-6 py-2 rounded-lg transition-colors"
@@ -342,7 +342,7 @@ export default function HistoryPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {season.standings.map((team, index) => (
+                          {season.standings.map((team) => (
                             <tr
                               key={`${season.year}-${team.rank}`}
                               className={`border-t border-border ${

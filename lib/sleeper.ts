@@ -41,6 +41,14 @@ export interface Team {
   streak: string;
 }
 
+// Interface para o estado atual da NFL
+export interface SleeperNFLState {
+  week: number;
+  display_week: number;
+  season_type: string;
+  leg: number;
+}
+
 // Sistema de cache in-memory
 interface CacheEntry<T> {
   data: T;
@@ -49,7 +57,7 @@ interface CacheEntry<T> {
 }
 
 class MemoryCache {
-  private cache = new Map<string, CacheEntry<any>>();
+  private cache = new Map<string, CacheEntry<unknown>>();
   
   set<T>(key: string, data: T, ttlSeconds: number): void {
     this.cache.set(key, {
@@ -69,7 +77,7 @@ class MemoryCache {
       return null;
     }
     
-    return entry.data;
+    return entry.data as T;
   }
   
   clear(): void {
@@ -148,6 +156,36 @@ export async function fetchJSON<T>(
   }
   
   return data;
+}
+
+// Busca o estado atual da temporada NFL
+export async function fetchNFLState(useCache = true): Promise<SleeperNFLState> {
+  const baseUrl = 'https://api.sleeper.app/v1';
+  const cacheConfig = getCacheConfig();
+  
+  const cacheOptions = useCache ? {
+    revalidate: cacheConfig.standingsTTL,
+    cacheKey: 'nfl-state'
+  } : {};
+  
+  try {
+    const state = await fetchJSON<SleeperNFLState>(`${baseUrl}/state/nfl`, cacheOptions);
+    
+    if (!state) {
+      throw new Error('Estado da NFL não encontrado');
+    }
+    
+    return state;
+  } catch (error) {
+    console.error('Erro ao buscar estado da NFL:', error);
+    // Retorna valores padrão em caso de erro
+    return {
+      week: 1,
+      display_week: 1,
+      season_type: 'regular',
+      leg: 1
+    };
+  }
 }
 
 // Exporta configurações de cache para uso nas APIs

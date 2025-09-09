@@ -1,5 +1,17 @@
 import { fetchJSON } from './sleeper';
 
+// Interface para dados da liga do Sleeper
+export interface SleeperLeague {
+  settings: {
+    leg?: number;
+    week?: number;
+    playoff_week_start?: number;
+    playoff_round_type?: number;
+    playoff_seed_type?: number;
+    total_rosters?: number;
+  };
+}
+
 // Interfaces para dados dos playoffs do Sleeper
 export interface SleeperWinnersBracket {
   r: number; // rodada
@@ -126,7 +138,7 @@ async function fetchPlayoffFinalFallback(
     const baseUrl = 'https://api.sleeper.app/v1';
     
     // Buscar dados da liga para obter informações sobre playoffs
-    const league = await fetchJSON<any>(`${baseUrl}/league/${leagueId}`);
+    const league = await fetchJSON<SleeperLeague>(`${baseUrl}/league/${leagueId}`);
     
     if (!league || !league.settings || !league.settings.playoff_week_start) {
       console.warn(`Informações de playoff não encontradas para liga ${leagueId}`);
@@ -185,7 +197,7 @@ async function fetchPlayoffFinalFallback(
 export async function fetchPlayoffInfo(leagueId: string): Promise<{ playoffWeekStart: number; totalWeeks: number } | null> {
   try {
     const baseUrl = 'https://api.sleeper.app/v1';
-    const league = await fetchJSON<any>(`${baseUrl}/league/${leagueId}`);
+    const league = await fetchJSON<SleeperLeague>(`${baseUrl}/league/${leagueId}`);
     
     if (!league || !league.settings) {
       return null;

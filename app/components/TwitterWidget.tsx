@@ -29,16 +29,16 @@ export default function TwitterWidget() {
     });
 
     // Verifica se o script do Twitter já foi carregado
-    if (typeof window !== 'undefined' && !(window as any).twttr) {
+    if (typeof window !== 'undefined' && !(window as unknown as { twttr?: { widgets: { load: () => void } } }).twttr) {
       // Cria e adiciona o script do Twitter
       const script = document.createElement('script');
       script.src = 'https://platform.twitter.com/widgets.js';
       script.async = true;
       script.charset = 'utf-8';
       document.head.appendChild(script);
-    } else if ((window as any).twttr) {
+    } else if ((window as unknown as { twttr?: { widgets: { load: () => void } } }).twttr) {
       // Se o script já foi carregado, recarrega os widgets
-      (window as any).twttr.widgets.load();
+      (window as unknown as { twttr: { widgets: { load: () => void } } }).twttr.widgets.load();
     }
 
     return () => observer.disconnect();

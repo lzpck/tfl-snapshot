@@ -1204,7 +1204,7 @@ export async function GET(request: NextRequest) {
     
     // Filtrar apenas IDs válidos (não vazios)
     const validLeagueIds = Object.entries(leagueIds)
-      .filter(([_, id]) => id.trim() !== '')
+      .filter(([, id]) => id.trim() !== '')
       .reduce((acc, [year, id]) => ({ ...acc, [year]: id }), {});
     
     if (Object.keys(validLeagueIds).length === 0) {

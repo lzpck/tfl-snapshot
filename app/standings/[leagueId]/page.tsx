@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface Team {
@@ -26,7 +26,6 @@ interface StandingsData {
 
 export default function StandingsPage() {
   const params = useParams();
-  const router = useRouter();
   const leagueId = params.leagueId as string;
   
   const [data, setData] = useState<StandingsData | null>(null);

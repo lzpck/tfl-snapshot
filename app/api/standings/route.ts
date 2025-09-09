@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchLeagueData, mapSleeperDataToTeams, Team, getCacheConfig, isInSeason } from '@/lib/sleeper';
+import { fetchLeagueData, mapSleeperDataToTeams, Team, getCacheConfig, isInSeason, fetchNFLState } from '@/lib/sleeper';
 import { applyRankings, getLeagueType } from '@/lib/sort';
 
 // Forçar rota dinâmica para evitar problemas de renderização estática
@@ -42,9 +42,12 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Buscar dados do Sleeper com cache dinâmico
+    // Buscar dados do Sleeper e estado atual da NFL com cache dinâmico
     // O cache é automaticamente aplicado baseado na temporada
-    const { league, users, rosters } = await fetchLeagueData(leagueId, true);
+    const [{ league, users, rosters }, nflState] = await Promise.all([
+      fetchLeagueData(leagueId, true),
+      fetchNFLState()
+    ]);
     
     // Verificar se a liga foi encontrada
     if (!league) {
@@ -63,11 +66,11 @@ export async function GET(request: NextRequest) {
     // Aplicar ordenação e rankings com lógica específica por tipo de liga
     const teams = applyRankings(teamsWithoutRank, leagueType);
     
-    // Montar resposta
+    // Montar resposta usando a semana atual do estado da NFL
     const response: StandingsResponse = {
       leagueId: league.league_id,
       season: league.season,
-      week: league.settings?.week || 0,
+      week: nflState.display_week, // Usa a semana atual da NFL
       teams
     };
     

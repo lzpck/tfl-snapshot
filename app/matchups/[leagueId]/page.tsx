@@ -2,16 +2,12 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
-import { MatchupView, Pair } from '@/lib/matchups';
+import { MatchupView } from '@/lib/matchups';
 import MatchupCard from '@/app/components/MatchupCard';
 
-// IDs das ligas para determinar o tipo
-const LEAGUE_ID_REDRAFT = process.env.NEXT_PUBLIC_LEAGUE_ID_REDRAFT || '1180180342143975424';
-const LEAGUE_ID_DYNASTY = process.env.NEXT_PUBLIC_LEAGUE_ID_DYNASTY || '1180180565689552896';
+const LEAGUE_ID_REDRAFT = process.env.NEXT_PUBLIC_LEAGUE_ID_REDRAFT!;
 
-interface MatchupsPageProps {}
-
-export default function MatchupsPage({}: MatchupsPageProps) {
+export default function MatchupsPage() {
   const params = useParams();
   const leagueId = params.leagueId as string;
   
