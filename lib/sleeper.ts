@@ -23,6 +23,8 @@ export interface SleeperRoster {
     ties: number;
     fpts?: number;
     fpts_against?: number;
+    fpts_decimal?: number;
+    fpts_against_decimal?: number;
   };
 }
 
