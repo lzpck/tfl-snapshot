@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchLeagueData, mapSleeperDataToTeams, Team, getCacheConfig, isInSeason } from '@/lib/sleeper';
-import { applyRankings } from '@/lib/sort';
+import { applyRankings, getLeagueType } from '@/lib/sort';
 
 // Forçar rota dinâmica para evitar problemas de renderização estática
 export const dynamic = 'force-dynamic';
@@ -57,8 +57,11 @@ export async function GET(request: NextRequest) {
     // Mapear dados para o formato interno
     const teamsWithoutRank = mapSleeperDataToTeams(users, rosters);
     
-    // Aplicar ordenação e rankings
-    const teams = applyRankings(teamsWithoutRank);
+    // Determinar o tipo de liga
+    const leagueType = getLeagueType(leagueId);
+    
+    // Aplicar ordenação e rankings com lógica específica por tipo de liga
+    const teams = applyRankings(teamsWithoutRank, leagueType);
     
     // Montar resposta
     const response: StandingsResponse = {

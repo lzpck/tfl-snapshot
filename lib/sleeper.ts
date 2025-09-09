@@ -130,8 +130,8 @@ export async function fetchJSON<T>(
     headers: {
       'User-Agent': 'TFLSnapshot/1.0'
     },
-    // Adiciona cache do Next.js se não houver cache customizado
-    next: revalidate ? undefined : { revalidate: 60 }
+    // Cache configurado baseado no TTL personalizado ou padrão do Next.js
+    next: revalidate ? { revalidate } : { revalidate: 60 }
   });
   
   if (!response.ok) {
@@ -237,8 +237,10 @@ export function mapSleeperDataToTeams(
       const wins = settings.wins || 0;
       const losses = settings.losses || 0;
       const ties = settings.ties || 0;
-      const fpts = settings.fpts || 0;
-      const fpts_against = settings.fpts_against || 0;
+      
+      // Combinar valores inteiros com decimais para formar o valor completo
+      const fpts = (settings.fpts || 0) + ((settings.fpts_decimal || 0) / 100);
+      const fpts_against = (settings.fpts_against || 0) + ((settings.fpts_against_decimal || 0) / 100);
       
       // Calcula streak (simplificado - apenas mostra W/L baseado no último resultado)
       const totalGames = wins + losses + ties;
@@ -255,8 +257,8 @@ export function mapSleeperDataToTeams(
         wins,
         losses,
         ties,
-        pointsFor: fpts ? Math.round(fpts * 100) / 100 : 0,
-        pointsAgainst: fpts_against ? Math.round(fpts_against * 100) / 100 : 0,
+        pointsFor: fpts ? parseFloat(fpts.toFixed(2)) : 0,
+        pointsAgainst: fpts_against ? parseFloat(fpts_against.toFixed(2)) : 0,
         streak
       };
     });
