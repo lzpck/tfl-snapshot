@@ -321,7 +321,7 @@ export async function calculateRealStreak(
     const baseUrl = 'https://api.sleeper.app/v1';
     const streakResults: ('W' | 'L' | 'T')[] = [];
     
-    // Analisar as últimas 10 semanas (ou até a semana 1)
+    // Analisar as últimas 10 semanas (ou até a semana 1), começando da mais recente
     const startWeek = Math.max(1, currentWeek - 10);
     
     for (let week = currentWeek - 1; week >= startWeek; week--) {
@@ -347,25 +347,24 @@ export async function calculateRealStreak(
         
         if (!opponentMatchup) continue;
         
-        // Determinar resultado
+        // Determinar resultado da partida
+        let result: 'W' | 'L' | 'T';
         if (teamMatchup.points > opponentMatchup.points) {
-          streakResults.unshift('W'); // Adiciona no início para manter ordem cronológica
+          result = 'W';
         } else if (teamMatchup.points < opponentMatchup.points) {
-          streakResults.unshift('L');
+          result = 'L';
         } else {
-          streakResults.unshift('T');
+          result = 'T';
         }
         
-        // Se mudou o tipo de resultado, parar (encontrou o fim do streak)
-        if (streakResults.length > 1) {
-          const lastResult = streakResults[streakResults.length - 1];
-          const currentResult = streakResults[streakResults.length - 2];
-          if (lastResult !== currentResult) {
-            // Remove o resultado diferente e para
-            streakResults.pop();
-            break;
-          }
+        // Se é o primeiro resultado ou se é igual ao anterior, adiciona ao streak
+        if (streakResults.length === 0 || streakResults[streakResults.length - 1] === result) {
+          streakResults.push(result);
+        } else {
+          // Se o resultado é diferente, para de contar (fim do streak atual)
+          break;
         }
+        
       } catch (weekError) {
         console.warn(`Erro ao buscar matchups da semana ${week}:`, weekError);
         continue;
@@ -377,8 +376,8 @@ export async function calculateRealStreak(
       return '-';
     }
     
-    // Contar streak atual (todos os resultados devem ser iguais)
-    const streakType = streakResults[streakResults.length - 1];
+    // Retorna o tipo e a contagem do streak atual
+    const streakType = streakResults[0]; // Primeiro resultado (mais recente)
     const streakCount = streakResults.length;
     
     return `${streakType}${streakCount}`;
