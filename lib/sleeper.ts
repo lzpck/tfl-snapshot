@@ -28,6 +28,13 @@ export interface SleeperRoster {
   };
 }
 
+// Interface para matchups do Sleeper
+export interface SleeperMatchup {
+  roster_id: number;
+  matchup_id: number;
+  points: number;
+}
+
 export interface Team {
   rank: number;
   rosterId: number;
@@ -302,4 +309,122 @@ export function mapSleeperDataToTeams(
         streak
       };
     });
+}
+
+// Função para calcular o streak real baseado no histórico de matchups
+export async function calculateRealStreak(
+  rosterId: number, 
+  leagueId: string, 
+  currentWeek: number
+): Promise<string> {
+  try {
+    const baseUrl = 'https://api.sleeper.app/v1';
+    const streakResults: ('W' | 'L' | 'T')[] = [];
+    
+    // Analisar as últimas 10 semanas (ou até a semana 1)
+    const startWeek = Math.max(1, currentWeek - 10);
+    
+    for (let week = currentWeek - 1; week >= startWeek; week--) {
+      try {
+        const matchups = await fetchJSON<SleeperMatchup[]>(
+          `${baseUrl}/league/${leagueId}/matchups/${week}`,
+          { 
+            revalidate: 300, // Cache por 5 minutos
+            cacheKey: `matchups-${leagueId}-${week}` 
+          }
+        );
+        
+        if (!Array.isArray(matchups)) continue;
+        
+        // Encontrar o matchup do time
+        const teamMatchup = matchups.find(m => m.roster_id === rosterId);
+        if (!teamMatchup) continue;
+        
+        // Encontrar o oponente no mesmo matchup_id
+        const opponentMatchup = matchups.find(
+          m => m.matchup_id === teamMatchup.matchup_id && m.roster_id !== rosterId
+        );
+        
+        if (!opponentMatchup) continue;
+        
+        // Determinar resultado
+        if (teamMatchup.points > opponentMatchup.points) {
+          streakResults.unshift('W'); // Adiciona no início para manter ordem cronológica
+        } else if (teamMatchup.points < opponentMatchup.points) {
+          streakResults.unshift('L');
+        } else {
+          streakResults.unshift('T');
+        }
+        
+        // Se mudou o tipo de resultado, parar (encontrou o fim do streak)
+        if (streakResults.length > 1) {
+          const lastResult = streakResults[streakResults.length - 1];
+          const currentResult = streakResults[streakResults.length - 2];
+          if (lastResult !== currentResult) {
+            // Remove o resultado diferente e para
+            streakResults.pop();
+            break;
+          }
+        }
+      } catch (weekError) {
+        console.warn(`Erro ao buscar matchups da semana ${week}:`, weekError);
+        continue;
+      }
+    }
+    
+    // Se não encontrou nenhum resultado, retorna padrão
+    if (streakResults.length === 0) {
+      return '-';
+    }
+    
+    // Contar streak atual (todos os resultados devem ser iguais)
+    const streakType = streakResults[streakResults.length - 1];
+    const streakCount = streakResults.length;
+    
+    return `${streakType}${streakCount}`;
+    
+  } catch (error) {
+    console.warn(`Erro ao calcular streak para roster ${rosterId}:`, error);
+    return '-';
+  }
+}
+
+// Função para mapear dados do Sleeper para times com streak real
+export async function mapSleeperDataToTeamsWithStreak(
+  users: SleeperUser[],
+  rosters: SleeperRoster[],
+  leagueId: string,
+  currentWeek: number
+): Promise<Omit<Team, 'rank'>[]> {
+  const teams = await Promise.all(
+    rosters.map(async (roster) => {
+      const user = users.find(u => u.user_id === roster.owner_id);
+      const displayName = user?.display_name || user?.username || `Team ${roster.roster_id}`;
+      
+      const { settings } = roster;
+      const wins = settings.wins || 0;
+      const losses = settings.losses || 0;
+      const ties = settings.ties || 0;
+      
+      const fpts = (settings.fpts || 0) + ((settings.fpts_decimal || 0) / 100);
+      const fpts_against = (settings.fpts_against || 0) + ((settings.fpts_against_decimal || 0) / 100);
+      
+      // Calcular streak real baseado no histórico de matchups
+      const streak = await calculateRealStreak(roster.roster_id, leagueId, currentWeek);
+      
+      return {
+        rosterId: roster.roster_id,
+        ownerId: roster.owner_id || 'unknown',
+        displayName,
+        wins,
+        losses,
+        ties,
+        pointsFor: fpts ? parseFloat(fpts.toFixed(2)) : 0,
+        pointsAgainst: fpts_against ? parseFloat(fpts_against.toFixed(2)) : 0,
+        streak
+      };
+    })
+  );
+  
+  return teams;
 }
