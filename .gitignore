@@ -39,6 +39,11 @@ coverage/
 # Arquivos do Vercel
 .vercel
 
+# Arquivos PWA gerados automaticamente
+public/fallback-*.js
+public/sw.js
+public/workbox-*.js
+
 # Arquivos do sistema
 .DS_Store
 .DS_Store?

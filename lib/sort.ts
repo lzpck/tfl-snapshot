@@ -23,7 +23,33 @@ function calculateWinPercentage(wins: number, losses: number, ties: number): num
   return (wins + 0.5 * ties) / totalGames;
 }
 
-// Função de ordenação dos standings
+// Função de ordenação padrão do Sleeper (baseada na documentação oficial)
+export function sortStandingsSleeperDefault(a: Omit<Team, 'rank'>, b: Omit<Team, 'rank'>): number {
+  // 1º critério: Win% (descendente)
+  const winPercentageA = calculateWinPercentage(a.wins, a.losses, a.ties);
+  const winPercentageB = calculateWinPercentage(b.wins, b.losses, b.ties);
+  
+  if (winPercentageA !== winPercentageB) {
+    return winPercentageB - winPercentageA; // Descendente
+  }
+  
+  // 2º critério: pointsFor (descendente)
+  if (a.pointsFor !== b.pointsFor) {
+    return b.pointsFor - a.pointsFor; // Descendente
+  }
+  
+  // 3º critério: pointsAgainst (descendente) - conforme documentação do Sleeper
+  if (a.pointsAgainst !== b.pointsAgainst) {
+    return b.pointsAgainst - a.pointsAgainst; // Descendente
+  }
+  
+  // 4º critério: rosterId (ascendente) para desempate estável
+  return a.rosterId - b.rosterId; // Ascendente
+}
+
+// Função de ordenação dos standings (REGRA PERSONALIZADA PRESERVADA)
+// Esta é nossa regra customizada que foi desenvolvida especificamente para a liga redraft
+// onde o 7º colocado é determinado exclusivamente por pontos totais
 export function sortStandings(a: Omit<Team, 'rank'>, b: Omit<Team, 'rank'>): number {
   // 1º critério: Win% (descendente)
   const winPercentageA = calculateWinPercentage(a.wins, a.losses, a.ties);
@@ -42,7 +68,46 @@ export function sortStandings(a: Omit<Team, 'rank'>, b: Omit<Team, 'rank'>): num
   return a.rosterId - b.rosterId; // Ascendente
 }
 
-// Aplica ordenação e adiciona ranks
+// Aplica lógica da "Corrida pelos Pontos" - nova funcionalidade
+export function applyPointsRaceRankings(teams: Omit<Team, 'rank'>[]): Team[] {
+  // Primeiro, aplicar ordenação padrão para determinar os 6 classificados
+  const standardSorted = [...teams].sort((a, b) => sortStandingsSleeperDefault(a, b));
+  
+  // Separar os 6 primeiros (classificados) dos demais
+  const top6Qualified = standardSorted.slice(0, 6);
+  const remaining = standardSorted.slice(6);
+  
+  // Reordenar os times restantes (7º ao 14º) por pontos feitos (descendente)
+  const pointsSorted = remaining.sort((a, b) => {
+    if (a.pointsFor !== b.pointsFor) {
+      return b.pointsFor - a.pointsFor; // Descendente
+    }
+    // Desempate por rosterId
+    return a.rosterId - b.rosterId;
+  });
+  
+  // Combinar: 6 classificados + demais ordenados por pontos
+  const finalOrder = [...top6Qualified, ...pointsSorted];
+  
+  return finalOrder.map((team, index) => ({
+    ...team,
+    rank: index + 1
+  }));
+}
+
+// Aplica ordenação padrão do Sleeper e adiciona ranks
+export function applySleeperDefaultRankings(teams: Omit<Team, 'rank'>[]): Team[] {
+  // Usar ordenação padrão do Sleeper (sem lógica customizada)
+  const sortedTeams = [...teams].sort((a, b) => sortStandingsSleeperDefault(a, b));
+  
+  return sortedTeams.map((team, index) => ({
+    ...team,
+    rank: index + 1
+  }));
+}
+
+// Aplica ordenação e adiciona ranks (LÓGICA PERSONALIZADA PRESERVADA)
+// Esta função mantém nossa lógica customizada para a liga redraft
 export function applyRankings(teams: Omit<Team, 'rank'>[], leagueType?: 'redraft' | 'dynasty'): Team[] {
   // Ordenação padrão
   const sortedTeams = [...teams].sort((a, b) => sortStandings(a, b));

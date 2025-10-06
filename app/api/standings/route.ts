@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchLeagueData, mapSleeperDataToTeamsWithStreak, Team, getCacheConfig, isInSeason, fetchNFLState } from '@/lib/sleeper';
-import { applyRankings, getLeagueType } from '@/lib/sort';
+import { applyRankings, applySleeperDefaultRankings, applyPointsRaceRankings, getLeagueType } from '@/lib/sort';
 
 // Forçar rota dinâmica para evitar problemas de renderização estática
 export const dynamic = 'force-dynamic';
@@ -20,11 +20,20 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const leagueId = searchParams.get('league');
+    const sortType = searchParams.get('sort') || 'sleeper'; // Padrão é 'sleeper'
     
     // Validação do parâmetro league
     if (!leagueId) {
       return NextResponse.json(
         { error: 'Parâmetro "league" é obrigatório' },
+        { status: 400 }
+      );
+    }
+    
+    // Validação do parâmetro sort
+    if (!['sleeper', 'custom', 'points-race'].includes(sortType)) {
+      return NextResponse.json(
+        { error: 'Parâmetro "sort" deve ser "sleeper", "custom" ou "points-race"' },
         { status: 400 }
       );
     }
@@ -63,8 +72,18 @@ export async function GET(request: NextRequest) {
     // Determinar o tipo de liga
     const leagueType = getLeagueType(leagueId);
     
-    // Aplicar ordenação e rankings com lógica específica por tipo de liga
-    const teams = applyRankings(teamsWithoutRank, leagueType);
+    // Aplicar ordenação baseada no tipo solicitado
+    let teams: Team[];
+    if (sortType === 'sleeper') {
+      // Usar ordenação padrão do Sleeper
+      teams = applySleeperDefaultRankings(teamsWithoutRank);
+    } else if (sortType === 'points-race') {
+      // Usar ordenação da "Corrida pelos Pontos"
+      teams = applyPointsRaceRankings(teamsWithoutRank);
+    } else {
+      // Usar ordenação customizada com lógica específica por tipo de liga
+      teams = applyRankings(teamsWithoutRank, leagueType);
+    }
     
     // Montar resposta usando a semana atual do estado da NFL
     const response: StandingsResponse = {
@@ -83,7 +102,8 @@ export async function GET(request: NextRequest) {
         'Cache-Control': `public, max-age=${maxAge}, s-maxage=${cacheConfig.standingsTTL}`,
         'X-Cache-Status': 'MISS',
         'X-Cache-TTL': cacheConfig.standingsTTL.toString(),
-        'X-In-Season': isInSeason().toString()
+        'X-In-Season': isInSeason().toString(),
+        'X-Sort-Type': sortType // Adicionar header para debug
       }
     });
     
