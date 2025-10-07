@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchLeagueData, mapSleeperDataToTeamsWithStreak, Team, getCacheConfig, isInSeason, fetchNFLState } from '@/lib/sleeper';
+import { fetchLeagueData, mapSleeperDataToTeams, Team, getCacheConfig, isInSeason, fetchNFLState } from '@/lib/sleeper';
 import { applyRankings, applySleeperDefaultRankings, applyPointsRaceRankings, getLeagueType } from '@/lib/sort';
 
 // Forçar rota dinâmica para evitar problemas de renderização estática
@@ -66,8 +66,8 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Mapear dados para o formato interno com streak real
-    const teamsWithoutRank = await mapSleeperDataToTeamsWithStreak(users, rosters, leagueId, nflState.display_week);
+    // Mapear dados para o formato interno
+    const teamsWithoutRank = mapSleeperDataToTeams(users, rosters);
     
     // Determinar o tipo de liga
     const leagueType = getLeagueType(leagueId);

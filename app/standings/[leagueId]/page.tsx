@@ -14,7 +14,6 @@ interface Team {
   ties: number;
   pointsFor: number;
   pointsAgainst: number;
-  streak: string;
 }
 
 interface StandingsData {
@@ -263,9 +262,6 @@ export default function StandingsPage() {
                 <th className="px-3 py-3 text-center text-xs font-medium text-text-muted uppercase tracking-wider bg-surface-hover">
                   PA
                 </th>
-                <th className="px-3 py-3 text-center text-xs font-medium text-text-muted uppercase tracking-wider bg-surface-hover">
-                  Streak
-                </th>
               </tr>
             </thead>
             <tbody className="bg-surface divide-y divide-border">
@@ -326,8 +322,8 @@ export default function StandingsPage() {
                             : isPlayoffSeed 
                               ? 'text-accent' 
                               : 'text-text'
-                      }`}>
-                        {team.displayName}
+                      }`} title={team.displayName || 'Nome não disponível'}>
+                        {team.displayName || `Time ${team.rosterId}` || 'Nome não disponível'}
                       </div>
                     </td>
                     <td className="px-3 py-4 whitespace-nowrap text-center text-sm text-text">
@@ -356,17 +352,6 @@ export default function StandingsPage() {
                     )}
                     <td className="px-3 py-4 whitespace-nowrap text-center text-sm text-text">
                       {team.pointsAgainst ? team.pointsAgainst.toFixed(1) : '0.0'}
-                    </td>
-                    <td className="px-3 py-4 whitespace-nowrap text-center text-sm">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        team.streak.startsWith('W') 
-                          ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
-                          : team.streak.startsWith('L')
-                          ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                          : 'bg-surface-hover text-text-muted border border-border'
-                      }`}>
-                        {team.streak}
-                      </span>
                     </td>
                   </tr>
                 );

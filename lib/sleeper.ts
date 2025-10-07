@@ -45,7 +45,6 @@ export interface Team {
   ties: number;
   pointsFor: number;
   pointsAgainst: number;
-  streak: string;
 }
 
 // Interface para o estado atual da NFL
@@ -65,6 +64,7 @@ interface CacheEntry<T> {
 
 class MemoryCache {
   private cache = new Map<string, CacheEntry<unknown>>();
+  private pendingRequests = new Map<string, Promise<unknown>>();
   
   set<T>(key: string, data: T, ttlSeconds: number): void {
     this.cache.set(key, {
@@ -72,6 +72,8 @@ class MemoryCache {
       timestamp: Date.now(),
       ttl: ttlSeconds * 1000
     });
+    // Limpar requisições pendentes após salvar no cache
+    this.pendingRequests.delete(key);
   }
   
   get<T>(key: string): T | null {
@@ -87,13 +89,49 @@ class MemoryCache {
     return entry.data as T;
   }
   
+  // Método para evitar requisições duplicadas
+  async getOrFetch<T>(key: string, fetchFn: () => Promise<T>, ttlSeconds: number): Promise<T> {
+    // Verificar cache primeiro
+    const cached = this.get<T>(key);
+    if (cached) {
+      return cached;
+    }
+    
+    // Verificar se já há uma requisição pendente para esta chave
+    const pending = this.pendingRequests.get(key);
+    if (pending) {
+      console.log(`[CACHE] Aguardando requisição pendente para: ${key}`);
+      return pending as Promise<T>;
+    }
+    
+    // Criar nova requisição e armazenar como pendente
+    console.log(`[CACHE] Iniciando nova requisição para: ${key}`);
+    const promise = fetchFn().then(data => {
+      this.set(key, data, ttlSeconds);
+      return data;
+    }).catch(error => {
+      // Remover da lista de pendentes em caso de erro
+      this.pendingRequests.delete(key);
+      throw error;
+    });
+    
+    this.pendingRequests.set(key, promise);
+    return promise;
+  }
+  
   clear(): void {
     this.cache.clear();
+    this.pendingRequests.clear();
   }
 }
 
 // Instância global do cache
 const memoryCache = new MemoryCache();
+
+// Exportar o cache para permitir limpeza externa
+if (typeof global !== 'undefined') {
+  global.memoryCache = memoryCache;
+}
 
 // Configurações de TTL baseadas na temporada
 interface CacheConfig {
@@ -134,35 +172,41 @@ export async function fetchJSON<T>(
   const { revalidate, cacheKey } = options;
   const finalCacheKey = cacheKey || url;
   
-  // Verifica cache primeiro se TTL foi especificado
+  // Se TTL foi especificado, usar o método getOrFetch para evitar condições de corrida
   if (revalidate) {
-    const cached = memoryCache.get<T>(finalCacheKey);
-    if (cached) {
-      return cached;
-    }
+    return memoryCache.getOrFetch<T>(finalCacheKey, async () => {
+      console.log(`[FETCH] Buscando dados da API: ${url}`);
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'TFLSnapshot/1.0'
+        },
+        next: { revalidate }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erro na API do Sleeper: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log(`[FETCH] Dados recebidos com sucesso de: ${url}`);
+      return data;
+    }, revalidate);
   }
   
-  // Faz a requisição
+  // Fallback para requisições sem cache
+  console.log(`[FETCH] Requisição sem cache para: ${url}`);
   const response = await fetch(url, {
     headers: {
       'User-Agent': 'TFLSnapshot/1.0'
     },
-    // Cache configurado baseado no TTL personalizado ou padrão do Next.js
-    next: revalidate ? { revalidate } : { revalidate: 60 }
+    next: { revalidate: 60 }
   });
   
   if (!response.ok) {
     throw new Error(`Erro na API do Sleeper: ${response.status}`);
   }
   
-  const data = await response.json();
-  
-  // Salva no cache se TTL foi especificado
-  if (revalidate) {
-    memoryCache.set(finalCacheKey, data, revalidate);
-  }
-  
-  return data;
+  return response.json();
 }
 
 // Busca o estado atual da temporada NFL
@@ -202,17 +246,30 @@ export { getCacheConfig, isInSeason };
 export async function fetchLeagueData(leagueId: string, useCache = true) {
   const baseUrl = 'https://api.sleeper.app/v1';
   const cacheConfig = getCacheConfig();
+  const timestamp = new Date().toISOString();
   
-  const cacheOptions = useCache ? {
+  console.log(`[LEAGUE_DATA ${timestamp}] Iniciando busca de dados para liga: ${leagueId}`);
+  
+  const leagueCacheOptions = useCache ? {
     revalidate: cacheConfig.standingsTTL,
-    cacheKey: `league-${leagueId}`
+    cacheKey: `league-info-${leagueId}`
+  } : {};
+  
+  const usersCacheOptions = useCache ? {
+    revalidate: cacheConfig.standingsTTL,
+    cacheKey: `league-users-${leagueId}`
+  } : {};
+  
+  const rostersCacheOptions = useCache ? {
+    revalidate: cacheConfig.standingsTTL,
+    cacheKey: `league-rosters-${leagueId}`
   } : {};
   
   try {
     const [league, users, rosters] = await Promise.all([
-      fetchJSON<SleeperLeague>(`${baseUrl}/league/${leagueId}`, cacheOptions),
-      fetchJSON<SleeperUser[]>(`${baseUrl}/league/${leagueId}/users`, cacheOptions),
-      fetchJSON<SleeperRoster[]>(`${baseUrl}/league/${leagueId}/rosters`, cacheOptions)
+      fetchJSON<SleeperLeague>(`${baseUrl}/league/${leagueId}`, leagueCacheOptions),
+      fetchJSON<SleeperUser[]>(`${baseUrl}/league/${leagueId}/users`, usersCacheOptions),
+      fetchJSON<SleeperRoster[]>(`${baseUrl}/league/${leagueId}/rosters`, rostersCacheOptions)
     ]);
     
     // Validar dados retornados
@@ -221,16 +278,80 @@ export async function fetchLeagueData(leagueId: string, useCache = true) {
     }
     
     // Garantir que users e rosters são arrays válidos
-    const validUsers = Array.isArray(users) ? users : [];
-    const validRosters = Array.isArray(rosters) ? rosters : [];
+    const validUsers = Array.isArray(users) ? users.filter(user => user && user.user_id) : [];
+    const validRosters = Array.isArray(rosters) ? rosters.filter(roster => roster && roster.roster_id !== undefined) : [];
+    
+    console.log(`[LEAGUE_DATA ${timestamp}] Dados iniciais - Usuários: ${validUsers.length}, Rosters: ${validRosters.length}`);
     
     if (validUsers.length === 0) {
-      console.warn(`Nenhum usuário encontrado para a liga ${leagueId}`);
+      console.warn(`[LEAGUE_DATA ${timestamp}] ⚠️ Nenhum usuário válido encontrado para a liga ${leagueId}`);
     }
     
     if (validRosters.length === 0) {
-      console.warn(`Nenhum roster encontrado para a liga ${leagueId}`);
+      console.warn(`[LEAGUE_DATA ${timestamp}] ⚠️ Nenhum roster válido encontrado para a liga ${leagueId}`);
     }
+    
+    // Verificar correspondências e buscar usuários órfãos
+    if (validUsers.length > 0 && validRosters.length > 0) {
+      const userIds = new Set(validUsers.map(u => u.user_id));
+      const ownerIds = validRosters.map(r => r.owner_id);
+      const unmatchedOwners = ownerIds.filter(ownerId => !userIds.has(ownerId));
+      
+      console.log(`[LEAGUE_DATA ${timestamp}] Verificação de correspondências - Owner IDs órfãos: ${unmatchedOwners.length}`);
+      
+      if (unmatchedOwners.length > 0) {
+        console.warn(`[LEAGUE_DATA ${timestamp}] ⚠️ Owner IDs sem usuário correspondente:`, unmatchedOwners);
+        
+        // Tentar buscar dados de usuários órfãos
+        console.log(`[LEAGUE_DATA ${timestamp}] Tentando buscar dados de usuários órfãos...`);
+        for (const ownerId of unmatchedOwners) {
+          try {
+            const orphanUser = await fetchJSON<SleeperUser>(`${baseUrl}/user/${ownerId}`, {
+              revalidate: useCache ? cacheConfig.standingsTTL : 0,
+              cacheKey: `user-${ownerId}`
+            });
+            if (orphanUser && orphanUser.user_id) {
+              console.log(`[LEAGUE_DATA ${timestamp}] ✅ Usuário órfão encontrado: ${ownerId} -> "${orphanUser.display_name || orphanUser.username}"`);
+              validUsers.push(orphanUser);
+            } else {
+              console.warn(`[LEAGUE_DATA ${timestamp}] ⚠️ Dados inválidos para usuário órfão ${ownerId}:`, orphanUser);
+            }
+          } catch (err) {
+            console.error(`[LEAGUE_DATA ${timestamp}] ❌ Erro ao buscar usuário órfão ${ownerId}:`, err);
+          }
+        }
+      }
+    }
+    
+    // Validação final: verificar se ainda há owner_ids sem correspondência
+    const finalUserIds = new Set(validUsers.map(u => u.user_id));
+    const finalOwnerIds = validRosters.map(r => r.owner_id);
+    const stillUnmatched = finalOwnerIds.filter(ownerId => !finalUserIds.has(ownerId));
+    
+    if (stillUnmatched.length > 0) {
+      console.error(`[LEAGUE_DATA ${timestamp}] 🚨 ALERTA CRÍTICO: ${stillUnmatched.length} owner IDs ainda sem correspondência após busca de órfãos:`, stillUnmatched);
+      
+      // Se ainda há usuários não correspondidos e não estamos usando cache, tentar uma segunda vez
+      if (!useCache && stillUnmatched.length > 0) {
+        console.log(`[LEAGUE_DATA ${timestamp}] Tentando segunda busca sem cache para usuários órfãos...`);
+        for (const ownerId of stillUnmatched) {
+          try {
+            const retryUser = await fetchJSON<SleeperUser>(`${baseUrl}/user/${ownerId}`, { 
+              revalidate: 0,
+              cacheKey: `user-retry-${ownerId}`
+            });
+            if (retryUser && retryUser.user_id) {
+              console.log(`[LEAGUE_DATA ${timestamp}] ✅ Usuário encontrado na segunda tentativa: ${ownerId} -> "${retryUser.display_name || retryUser.username}"`);
+              validUsers.push(retryUser);
+            }
+          } catch (err) {
+            console.error(`[LEAGUE_DATA ${timestamp}] ❌ Segunda tentativa falhou para ${ownerId}:`, err);
+          }
+        }
+      }
+    }
+    
+    console.log(`[LEAGUE_DATA ${timestamp}] ✅ Dados finais - Usuários: ${validUsers.length}, Rosters: ${validRosters.length}`);
     
     return { 
       league, 
@@ -238,7 +359,7 @@ export async function fetchLeagueData(leagueId: string, useCache = true) {
       rosters: validRosters 
     };
   } catch (error) {
-    console.error(`Erro ao buscar dados da liga ${leagueId}:`, error);
+    console.error(`[LEAGUE_DATA ${timestamp}] ❌ Erro ao buscar dados da liga ${leagueId}:`, error);
     // Retornar dados vazios em caso de erro para evitar quebrar a aplicação
     return {
       league: null,
@@ -248,36 +369,91 @@ export async function fetchLeagueData(leagueId: string, useCache = true) {
   }
 }
 
-// Mapeia dados do Sleeper para o formato interno
+// Função para mapear dados do Sleeper para times
 export function mapSleeperDataToTeams(
   users: SleeperUser[],
   rosters: SleeperRoster[]
 ): Omit<Team, 'rank'>[] {
+  const timestamp = new Date().toISOString();
+  console.log(`[MAPPING ${timestamp}] Iniciando mapeamento de dados`);
+  console.log(`[MAPPING ${timestamp}] Usuários recebidos: ${users?.length || 0}`);
+  console.log(`[MAPPING ${timestamp}] Rosters recebidos: ${rosters?.length || 0}`);
+  
   // Validação de entrada - garantir que users é um array
   if (!Array.isArray(users)) {
-    console.warn('Users não é um array:', users);
+    console.warn(`[MAPPING ${timestamp}] ⚠️ Users não é um array:`, users);
     users = [];
   }
   
   // Validação de entrada - garantir que rosters é um array
   if (!Array.isArray(rosters)) {
-    console.warn('Rosters não é um array:', rosters);
+    console.warn(`[MAPPING ${timestamp}] ⚠️ Rosters não é um array:`, rosters);
     return [];
   }
   
-  // Cria mapa de owner_id -> display_name
+  // Cria mapa de owner_id -> display_name com validação mais robusta
   const userMap = new Map<string, string>();
   users.forEach(user => {
     if (user && user.user_id) {
-      const displayName = user.display_name || user.username || 'Desconhecido';
+      // Validação mais robusta para display_name
+      let displayName = '';
+      
+      // Primeiro, tentar display_name (verificando se não é vazio)
+      if (user.display_name && user.display_name.trim().length > 0) {
+        displayName = user.display_name.trim();
+      }
+      // Se display_name estiver vazio, tentar username
+      else if (user.username && user.username.trim().length > 0) {
+        displayName = user.username.trim();
+      }
+      // Último recurso: usar o user_id como identificador
+      else {
+        displayName = `Usuário ${user.user_id.slice(-6)}`;
+        console.warn(`[MAPPING ${timestamp}] ⚠️ Usando nome genérico para user_id ${user.user_id}: ${displayName}`);
+      }
+      
       userMap.set(user.user_id, displayName);
+      console.log(`[MAPPING ${timestamp}] Mapeado: ${user.user_id} -> "${displayName}"`);
     }
   });
   
-  return rosters
+  // Log para debug quando há problemas de mapeamento
+  if (userMap.size === 0 && users.length > 0) {
+    console.error(`[MAPPING ${timestamp}] 🚨 PROBLEMA CRÍTICO: Nenhum usuário foi mapeado corretamente. Dados dos usuários:`, users);
+  }
+  
+  const mappedTeams = rosters
     .filter(roster => roster && roster.roster_id !== undefined) // Filtrar rosters inválidos
     .map(roster => {
-      const displayName = userMap.get(roster.owner_id) || 'Desconhecido';
+      let displayName = userMap.get(roster.owner_id);
+      let nameSource = 'userMap';
+      
+      // Se não encontrou o usuário no mapa, tentar estratégias alternativas
+      if (!displayName) {
+        console.warn(`[MAPPING ${timestamp}] ⚠️ Usuário não encontrado para owner_id: ${roster.owner_id}. Tentando estratégias alternativas.`);
+        
+        // Tentar encontrar por correspondência parcial ou outros métodos
+        const matchingUser = users.find(user => 
+          user && (
+            user.user_id === roster.owner_id ||
+            user.username === roster.owner_id ||
+            user.display_name === roster.owner_id
+          )
+        );
+        
+        if (matchingUser) {
+          displayName = matchingUser.display_name?.trim() || 
+                      matchingUser.username?.trim() || 
+                      `Usuário ${matchingUser.user_id.slice(-6)}`;
+          nameSource = 'alternativeMatch';
+          console.log(`[MAPPING ${timestamp}] ✅ Encontrado usuário por correspondência alternativa: ${displayName}`);
+        } else {
+          // Último recurso: usar o owner_id como base para o nome
+          displayName = `Time ${roster.owner_id?.slice(-6) || roster.roster_id}`;
+          nameSource = 'generic';
+          console.error(`[MAPPING ${timestamp}] 🚨 NOME GENÉRICO CRIADO para roster ${roster.roster_id}: "${displayName}" (owner_id: ${roster.owner_id})`);
+        }
+      }
       
       // Validar se settings existe e tem as propriedades necessárias
       const settings = roster.settings || {};
@@ -289,141 +465,31 @@ export function mapSleeperDataToTeams(
       const fpts = (settings.fpts || 0) + ((settings.fpts_decimal || 0) / 100);
       const fpts_against = (settings.fpts_against || 0) + ((settings.fpts_against_decimal || 0) / 100);
       
-      // Calcula streak (simplificado - apenas mostra W/L baseado no último resultado)
-      const totalGames = wins + losses + ties;
-      let streak = '-';
-      if (totalGames > 0) {
-        // Simplificado: assume que o último jogo foi uma vitória se wins > losses
-        streak = wins >= losses ? 'W1' : 'L1';
-      }
-      
-      return {
+      const team = {
         rosterId: roster.roster_id,
         ownerId: roster.owner_id || 'unknown',
-        displayName,
+        displayName: displayName || `Time ${roster.roster_id}`, // Garantia final
         wins,
         losses,
         ties,
         pointsFor: fpts ? parseFloat(fpts.toFixed(2)) : 0,
-        pointsAgainst: fpts_against ? parseFloat(fpts_against.toFixed(2)) : 0,
-        streak
+        pointsAgainst: fpts_against ? parseFloat(fpts_against.toFixed(2)) : 0
       };
+      
+      // Log detalhado para cada time mapeado
+      console.log(`[MAPPING ${timestamp}] Time mapeado - Roster: ${team.rosterId}, Owner: ${team.ownerId}, Nome: "${team.displayName}" (fonte: ${nameSource})`);
+      
+      return team;
     });
-}
-
-// Função para calcular o streak real baseado no histórico de matchups
-export async function calculateRealStreak(
-  rosterId: number, 
-  leagueId: string, 
-  currentWeek: number
-): Promise<string> {
-  try {
-    const baseUrl = 'https://api.sleeper.app/v1';
-    const streakResults: ('W' | 'L' | 'T')[] = [];
-    
-    // Analisar as últimas 10 semanas (ou até a semana 1), começando da mais recente
-    const startWeek = Math.max(1, currentWeek - 10);
-    
-    for (let week = currentWeek - 1; week >= startWeek; week--) {
-      try {
-        const matchups = await fetchJSON<SleeperMatchup[]>(
-          `${baseUrl}/league/${leagueId}/matchups/${week}`,
-          { 
-            revalidate: 300, // Cache por 5 minutos
-            cacheKey: `matchups-${leagueId}-${week}` 
-          }
-        );
-        
-        if (!Array.isArray(matchups)) continue;
-        
-        // Encontrar o matchup do time
-        const teamMatchup = matchups.find(m => m.roster_id === rosterId);
-        if (!teamMatchup) continue;
-        
-        // Encontrar o oponente no mesmo matchup_id
-        const opponentMatchup = matchups.find(
-          m => m.matchup_id === teamMatchup.matchup_id && m.roster_id !== rosterId
-        );
-        
-        if (!opponentMatchup) continue;
-        
-        // Determinar resultado da partida
-        let result: 'W' | 'L' | 'T';
-        if (teamMatchup.points > opponentMatchup.points) {
-          result = 'W';
-        } else if (teamMatchup.points < opponentMatchup.points) {
-          result = 'L';
-        } else {
-          result = 'T';
-        }
-        
-        // Se é o primeiro resultado ou se é igual ao anterior, adiciona ao streak
-        if (streakResults.length === 0 || streakResults[streakResults.length - 1] === result) {
-          streakResults.push(result);
-        } else {
-          // Se o resultado é diferente, para de contar (fim do streak atual)
-          break;
-        }
-        
-      } catch (weekError) {
-        console.warn(`Erro ao buscar matchups da semana ${week}:`, weekError);
-        continue;
-      }
-    }
-    
-    // Se não encontrou nenhum resultado, retorna padrão
-    if (streakResults.length === 0) {
-      return '-';
-    }
-    
-    // Retorna o tipo e a contagem do streak atual
-    const streakType = streakResults[0]; // Primeiro resultado (mais recente)
-    const streakCount = streakResults.length;
-    
-    return `${streakType}${streakCount}`;
-    
-  } catch (error) {
-    console.warn(`Erro ao calcular streak para roster ${rosterId}:`, error);
-    return '-';
-  }
-}
-
-// Função para mapear dados do Sleeper para times com streak real
-export async function mapSleeperDataToTeamsWithStreak(
-  users: SleeperUser[],
-  rosters: SleeperRoster[],
-  leagueId: string,
-  currentWeek: number
-): Promise<Omit<Team, 'rank'>[]> {
-  const teams = await Promise.all(
-    rosters.map(async (roster) => {
-      const user = users.find(u => u.user_id === roster.owner_id);
-      const displayName = user?.display_name || user?.username || `Team ${roster.roster_id}`;
-      
-      const { settings } = roster;
-      const wins = settings.wins || 0;
-      const losses = settings.losses || 0;
-      const ties = settings.ties || 0;
-      
-      const fpts = (settings.fpts || 0) + ((settings.fpts_decimal || 0) / 100);
-      const fpts_against = (settings.fpts_against || 0) + ((settings.fpts_against_decimal || 0) / 100);
-      
-      // Calcular streak real baseado no histórico de matchups
-      const streak = await calculateRealStreak(roster.roster_id, leagueId, currentWeek);
-      
-      return {
-        rosterId: roster.roster_id,
-        ownerId: roster.owner_id || 'unknown',
-        displayName,
-        wins,
-        losses,
-        ties,
-        pointsFor: fpts ? parseFloat(fpts.toFixed(2)) : 0,
-        pointsAgainst: fpts_against ? parseFloat(fpts_against.toFixed(2)) : 0,
-        streak
-      };
-    })
-  );
   
-  return teams;
+  console.log(`[MAPPING ${timestamp}] ✅ Mapeamento concluído: ${mappedTeams.length} times processados`);
+  
+  // Verificar se há nomes genéricos no resultado final
+  const genericNames = mappedTeams.filter(team => team.displayName.startsWith('Time '));
+  if (genericNames.length > 0) {
+    console.error(`[MAPPING ${timestamp}] 🚨 ALERTA: ${genericNames.length} times com nomes genéricos detectados:`, 
+      genericNames.map(t => `Roster ${t.rosterId}: "${t.displayName}"`));
+  }
+  
+  return mappedTeams;
 }

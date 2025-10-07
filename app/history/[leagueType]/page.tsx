@@ -365,7 +365,7 @@ export default function HistoryPage() {
                               </td>
                               <td className="px-4 py-3">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium text-text">{team.displayName}</span>
+                                  <span className="text-sm font-medium text-text">{team.displayName || `Time ${team.rank}` || 'Nome não disponível'}</span>
                                   {season.champion && team.displayName === season.champion.displayName && season.champion.seed && (
                                     <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 px-1 py-0.5 rounded">
                                       Seed #{season.champion.seed}

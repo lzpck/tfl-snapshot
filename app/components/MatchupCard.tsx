@@ -11,7 +11,6 @@ interface Team {
   ties: number;
   pointsFor: number;
   pointsAgainst: number;
-  streak: string;
 }
 
 interface Pair {
