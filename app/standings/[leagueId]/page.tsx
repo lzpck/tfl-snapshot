@@ -131,17 +131,35 @@ export default function StandingsPage() {
     try {
       const leagueConfig = getLeagueConfig();
       
-      if (id === leagueConfig.redraft) return 'Redraft League';
-      if (id === leagueConfig.dynasty) return 'Dynasty League';
+      // Verificar ligas principais primeiro
+      if (id === leagueConfig.redraft) {
+        return 'Redraft League';
+      }
+      
+      if (id === leagueConfig.dynasty) {
+        return 'Dynasty League';
+      }
       
       // Verificar ligas históricas
       const historical = leagueConfig.historical;
       
-      if (id === historical.redraft[2022]) return 'Redraft League 2022';
-      if (id === historical.redraft[2023]) return 'Redraft League 2023';
-      if (id === historical.redraft[2024]) return 'Redraft League 2024';
-      if (id === historical.dynasty[2024]) return 'Dynasty League 2024';
+      if (id === historical.redraft[2022]) {
+        return 'Redraft League 2022';
+      }
       
+      if (id === historical.redraft[2023]) {
+        return 'Redraft League 2023';
+      }
+      
+      if (id === historical.redraft[2024]) {
+        return 'Redraft League 2024';
+      }
+      
+      if (id === historical.dynasty[2024]) {
+        return 'Dynasty League 2024';
+      }
+      
+      // Fallback para nome mais amigável
       return `Liga ${id.slice(-6)}`;
     } catch (error) {
       console.error('Erro ao obter nome da liga:', error);

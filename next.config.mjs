@@ -6,6 +6,17 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['react-icons']
   },
+  
+  // Expor variáveis de ambiente para o cliente
+  env: {
+    LEAGUE_ID_REDRAFT: process.env.LEAGUE_ID_REDRAFT,
+    LEAGUE_ID_DYNASTY: process.env.LEAGUE_ID_DYNASTY,
+    LEAGUE_ID_REDRAFT_2022: process.env.LEAGUE_ID_REDRAFT_2022,
+    LEAGUE_ID_REDRAFT_2023: process.env.LEAGUE_ID_REDRAFT_2023,
+    LEAGUE_ID_REDRAFT_2024: process.env.LEAGUE_ID_REDRAFT_2024,
+    LEAGUE_ID_DYNASTY_2024: process.env.LEAGUE_ID_DYNASTY_2024,
+  },
+  
   // Headers para melhor performance
   async headers() {
     return [
