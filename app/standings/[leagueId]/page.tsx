@@ -254,40 +254,42 @@ export default function StandingsPage() {
         </div>
       </div>
 
-      {/* Controles de Classificação */}
-      <div className="mb-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <div className="flex flex-col gap-2">
-          <h3 className="text-lg font-semibold text-text">Tipo de Classificação</h3>
-          <p className="text-sm text-text-muted">
-            {useSleeperDefault 
-              ? 'Exibindo classificação no formato padrão do Sleeper' 
-              : 'Exibindo "Corrida pelos Pontos" - Times classificados destacados em cinza, demais ordenados por pontos'
-            }
-          </p>
+      {/* Controles de Classificação - Apenas para ligas Redraft */}
+      {leagueType === 'redraft' && (
+        <div className="mb-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+          <div className="flex flex-col gap-2">
+            <h3 className="text-lg font-semibold text-text">Tipo de Classificação</h3>
+            <p className="text-sm text-text-muted">
+              {useSleeperDefault 
+                ? 'Exibindo classificação no formato padrão do Sleeper' 
+                : 'Exibindo "Corrida pelos Pontos" - Times classificados destacados em cinza, demais ordenados por pontos'
+              }
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setUseSleeperDefault(true)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                useSleeperDefault
+                  ? 'bg-accent text-white shadow-sm'
+                  : 'bg-surface-hover text-text-muted hover:text-text hover:bg-surface border border-border'
+              }`}
+            >
+              Classificação Padrão
+            </button>
+            <button
+              onClick={() => setUseSleeperDefault(false)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                !useSleeperDefault
+                  ? 'bg-accent text-white shadow-sm'
+                  : 'bg-surface-hover text-text-muted hover:text-text hover:bg-surface border border-border'
+              }`}
+            >
+              Corrida pelos Pontos
+            </button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setUseSleeperDefault(true)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-              useSleeperDefault
-                ? 'bg-accent text-white shadow-sm'
-                : 'bg-surface-hover text-text-muted hover:text-text hover:bg-surface border border-border'
-            }`}
-          >
-            Classificação Padrão
-          </button>
-          <button
-            onClick={() => setUseSleeperDefault(false)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-              !useSleeperDefault
-                ? 'bg-accent text-white shadow-sm'
-                : 'bg-surface-hover text-text-muted hover:text-text hover:bg-surface border border-border'
-            }`}
-          >
-            Corrida pelos Pontos
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* Tabela de Standings */}
       <div className="bg-surface rounded-lg border border-border overflow-hidden">
@@ -310,7 +312,7 @@ export default function StandingsPage() {
                 <th className="px-3 py-3 text-center text-xs font-medium text-text-muted uppercase tracking-wider bg-surface-hover">
                   PF
                 </th>
-                {!useSleeperDefault && (
+                {!useSleeperDefault && leagueType === 'redraft' && (
                   <th className="px-3 py-3 text-center text-xs font-medium text-text-muted uppercase tracking-wider bg-surface-hover">
                     Diferença
                   </th>
@@ -326,8 +328,8 @@ export default function StandingsPage() {
                 const isPlayoffSeed = team.rank <= playoffConfig.totalSeeds;
                 const isByeSeed = team.rank <= playoffConfig.byeSeeds;
                 
-                // Na "Corrida pelos Pontos", os 6 primeiros (classificados) ficam em cinza
-                const isQualifiedInPointsRace = !useSleeperDefault && team.rank <= 6;
+                // Na "Corrida pelos Pontos", os 6 primeiros (classificados) ficam em cinza (apenas para Redraft)
+                const isQualifiedInPointsRace = !useSleeperDefault && leagueType === 'redraft' && team.rank <= 6;
                 
                 const rowClasses = isQualifiedInPointsRace
                   ? 'bg-gray-500/10 hover:bg-gray-500/20 border-l-4 border-gray-400 transition-colors opacity-60'
@@ -337,9 +339,9 @@ export default function StandingsPage() {
                       : 'bg-accent/10 hover:bg-accent/20 border-l-4 border-accent transition-colors'
                     : 'hover:bg-surface-hover transition-colors';
                 
-                // Calcular diferença para o líder da corrida (apenas para times não classificados)
+                // Calcular diferença para o líder da corrida (apenas para times não classificados em ligas Redraft)
                 let pointsDifference = 0;
-                if (!useSleeperDefault && team.rank > 6) {
+                if (!useSleeperDefault && leagueType === 'redraft' && team.rank > 6) {
                   // Encontrar o líder da corrida (7º colocado - primeiro dos não classificados)
                   const raceLeader = data.teams.find(t => t.rank === 7);
                   if (raceLeader) {
@@ -395,7 +397,7 @@ export default function StandingsPage() {
                     <td className="px-3 py-4 whitespace-nowrap text-center text-sm text-text">
                       {team.pointsFor ? team.pointsFor.toFixed(1) : '0.0'}
                     </td>
-                    {!useSleeperDefault && (
+                    {!useSleeperDefault && leagueType === 'redraft' && (
                       <td className="px-3 py-4 whitespace-nowrap text-center text-sm text-text">
                         {team.rank > 6 ? (
                           <span className={`font-medium ${pointsDifference === 0 ? 'text-green-400' : 'text-red-400'}`}>
