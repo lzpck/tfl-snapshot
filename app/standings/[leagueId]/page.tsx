@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { getLeagueConfig } from '../../../lib/env-validation';
 
 interface Team {
   rank: number;
@@ -127,15 +128,52 @@ export default function StandingsPage() {
   }
 
   const getLeagueName = (id: string) => {
-    if (id === '1180180342143975424') return 'Redraft League';
-    if (id === '1180180565689552896') return 'Dynasty League';
-    return 'Liga';
+    try {
+      const leagueConfig = getLeagueConfig();
+      
+      if (id === leagueConfig.redraft) return 'Redraft League';
+      if (id === leagueConfig.dynasty) return 'Dynasty League';
+      
+      // Verificar ligas históricas
+      const historical = leagueConfig.historical;
+      
+      if (id === historical.redraft[2022]) return 'Redraft League 2022';
+      if (id === historical.redraft[2023]) return 'Redraft League 2023';
+      if (id === historical.redraft[2024]) return 'Redraft League 2024';
+      if (id === historical.dynasty[2024]) return 'Dynasty League 2024';
+      
+      return `Liga ${id.slice(-6)}`;
+    } catch (error) {
+      console.error('Erro ao obter nome da liga:', error);
+      return `Liga ${id.slice(-6)}`;
+    }
   };
 
   const getLeagueType = (id: string): 'redraft' | 'dynasty' => {
-    if (id === '1180180342143975424') return 'redraft';
-    if (id === '1180180565689552896') return 'dynasty';
-    return 'redraft';
+    try {
+      const leagueConfig = getLeagueConfig();
+      
+      if (id === leagueConfig.redraft) return 'redraft';
+      if (id === leagueConfig.dynasty) return 'dynasty';
+      
+      // Verificar ligas históricas
+      const historical = leagueConfig.historical;
+      
+      if (id === historical.redraft[2022] || 
+          id === historical.redraft[2023] || 
+          id === historical.redraft[2024]) {
+        return 'redraft';
+      }
+      
+      if (id === historical.dynasty[2024]) {
+        return 'dynasty';
+      }
+      
+      return 'redraft'; // fallback
+    } catch (error) {
+      console.error('Erro ao determinar tipo da liga:', error);
+      return 'redraft'; // fallback
+    }
   };
 
   const getPlayoffConfig = (leagueType: 'redraft' | 'dynasty') => {

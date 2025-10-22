@@ -1,19 +1,41 @@
 import { Team } from './sleeper';
+import { getLeagueConfig } from './env-validation';
 
 // Função auxiliar para determinar o tipo de liga baseado no ID
 export function getLeagueType(leagueId: string): 'redraft' | 'dynasty' {
-  // IDs das ligas configurados no ambiente
-  const LEAGUE_ID_REDRAFT = process.env.LEAGUE_ID_REDRAFT || '1180180342143975424';
-  const LEAGUE_ID_DYNASTY = process.env.LEAGUE_ID_DYNASTY || '1180180565689552896';
-  
-  if (leagueId === LEAGUE_ID_REDRAFT) {
+  try {
+    // Obter configurações validadas das ligas
+    const leagueConfig = getLeagueConfig();
+    
+    if (leagueId === leagueConfig.redraft) {
+      return 'redraft';
+    } else if (leagueId === leagueConfig.dynasty) {
+      return 'dynasty';
+    }
+    
+    // Verificar ligas históricas
+    const historical = leagueConfig.historical;
+    
+    // Verificar redraft históricas
+    if (leagueId === historical.redraft[2022] || 
+        leagueId === historical.redraft[2023] || 
+        leagueId === historical.redraft[2024]) {
+      return 'redraft';
+    }
+    
+    // Verificar dynasty históricas
+    if (leagueId === historical.dynasty[2024]) {
+      return 'dynasty';
+    }
+    
+    // Fallback para redraft se não reconhecer o ID
+    console.warn(`⚠️ ID de liga não reconhecido: ${leagueId}. Usando tipo 'redraft' como fallback.`);
     return 'redraft';
-  } else if (leagueId === LEAGUE_ID_DYNASTY) {
-    return 'dynasty';
+  } catch (error) {
+    console.error('❌ Erro ao determinar tipo de liga:', error);
+    // Fallback para redraft em caso de erro
+    return 'redraft';
   }
-  
-  // Fallback para redraft se não reconhecer o ID
-  return 'redraft';
 }
 
 // Função para calcular Win% = (wins + 0.5*ties) / (wins+losses+ties)

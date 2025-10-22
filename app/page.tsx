@@ -1,75 +1,68 @@
 import Link from 'next/link';
-import TwitterWidget from './components/TwitterWidget';
+import { getLeagueConfig } from '../lib/env-validation';
 
-export default function HomePage() {
+export default function Home() {
+  // Obter configurações validadas das ligas
+  const leagueConfig = getLeagueConfig();
+  
   const leagues = [
     {
-      id: process.env.LEAGUE_ID_REDRAFT || '1180180342143975424',
+      id: leagueConfig.redraft,
       name: 'Redraft League',
-      description: '14 times • Liga tradicional',
-      gradient: 'from-accent to-accent-hover'
+      type: 'redraft' as const,
+      description: 'Liga de renovação anual com draft completo a cada temporada'
     },
     {
-      id: process.env.LEAGUE_ID_DYNASTY || '1180180565689552896',
-      name: 'Dynasty League',
-      description: '10 times • Liga dynasty',
-      gradient: 'from-green-500 to-green-600'
+      id: leagueConfig.dynasty,
+      name: 'Dynasty League', 
+      type: 'dynasty' as const,
+      description: 'Liga permanente com times mantidos entre temporadas'
     }
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h2 className="text-3xl font-bold text-text mb-2">
-          Ligas TFL
-        </h2>
-        <p className="text-text-muted">
-          Selecione uma liga para ver os standings atuais
-        </p>
-      </div>
-      
-      {/* Seção das Ligas */}
-      <div className="max-w-4xl mx-auto mb-8">
-        <div className="grid gap-6 md:grid-cols-2">
-          {leagues.map((league) => (
-            <div
-              key={league.id}
-              className={`bg-gradient-to-br ${league.gradient} text-white rounded-lg p-6 border border-border-muted hover:scale-105 transition-all duration-200 shadow-lg`}
-            >
-              <h3 className="text-xl font-bold mb-2">
-                {league.name}
-              </h3>
-              <p className="text-white/90 mb-4">
-                {league.description}
-              </p>
-              <div className="flex gap-2">
-                <Link
-                  href={`/standings/${league.id}`}
-                  className="flex-1 bg-white/20 hover:bg-white/30 rounded-lg px-3 py-2 text-center text-sm font-medium transition-colors backdrop-blur-sm"
-                >
-                  Standings
-                </Link>
-                <Link
-                  href={`/matchups/${league.id}`}
-                  className="flex-1 bg-white/20 hover:bg-white/30 rounded-lg px-3 py-2 text-center text-sm font-medium transition-colors backdrop-blur-sm"
-                >
-                  Matchups
-                </Link>
-                <Link
-                  href={`/history/${league.id === (process.env.LEAGUE_ID_REDRAFT || '1180180342143975424') ? 'redraft' : 'dynasty'}`}
-                  className="flex-1 bg-white/20 hover:bg-white/30 rounded-lg px-3 py-2 text-center text-sm font-medium transition-colors backdrop-blur-sm"
-                >
-                  Histórico
-                </Link>
-              </div>
+    <div className="text-center mb-12">
+      <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+        TFL Snapshot
+      </h1>
+      <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-12">
+        Acompanhe os standings e matchups das suas ligas de fantasy football
+      </p>
+
+      <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        {leagues.map((league) => (
+          <div key={league.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              {league.name}
+            </h2>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              {league.description}
+            </p>
+            
+            <div className="space-y-4">
+              <Link 
+                href={`/standings/${league.id}`}
+                className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg text-center transition-colors"
+              >
+                Ver Standings
+              </Link>
+              
+              <Link 
+                href={`/matchups/${league.id}`}
+                className="block w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg text-center transition-colors"
+              >
+                Ver Matchups
+              </Link>
+              
+              <Link 
+                href={`/history/${league.type}`}
+                className="block w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-4 rounded-lg text-center transition-colors"
+              >
+                Ver Histórico
+              </Link>
             </div>
-          ))}
-        </div>
-      </div>
-      
-      {/* Widget do Twitter */}
-      <div className="max-w-2xl mx-auto">
-        <TwitterWidget />
+          </div>
+        ))}
       </div>
     </div>
   );

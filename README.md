@@ -50,24 +50,81 @@ pnpm dev
 
 ### Variáveis de Ambiente
 
-Configure as seguintes variáveis no arquivo `.env.local`:
+Configure as seguintes variáveis no arquivo `.env`:
+
+#### 📋 Configuração Inicial
+
+1. **Copie o arquivo de exemplo:**
+```bash
+cp .env.example .env
+```
+
+2. **Configure os IDs das suas ligas no arquivo `.env`:**
+
+#### 🏈 Ligas Principais (Obrigatórias)
 
 ```env
-# IDs das Ligas (obrigatório)
-REDRAFT_LEAGUE_ID=seu_id_da_liga_redraft
-DYNASTY_LEAGUE_ID=seu_id_da_liga_dynasty
+# Liga Redraft - Liga principal de redraft (renovação anual)
+# Utilizada para matchups e standings da temporada atual
+LEAGUE_ID_REDRAFT=seu_id_da_liga_redraft
 
-# Configurações de Ambiente
+# Liga Dynasty - Liga principal de dynasty (times permanentes)  
+# Utilizada para matchups e standings da temporada atual
+LEAGUE_ID_DYNASTY=seu_id_da_liga_dynasty
+```
+
+#### 📚 Ligas Históricas (Opcionais)
+
+```env
+# IDs das ligas redraft de temporadas anteriores
+# Utilizadas na seção de histórico da aplicação
+LEAGUE_ID_REDRAFT_2022=id_da_liga_redraft_2022
+LEAGUE_ID_REDRAFT_2023=id_da_liga_redraft_2023
+LEAGUE_ID_REDRAFT_2024=id_da_liga_redraft_2024
+
+# IDs das ligas dynasty de temporadas anteriores
+LEAGUE_ID_DYNASTY_2024=id_da_liga_dynasty_2024
+```
+
+#### ⚙️ Configurações Adicionais (Opcionais)
+
+```env
+# Ambiente de execução
 NODE_ENV=development
-NEXT_PUBLIC_APP_ENV=development
 
-# Configurações de Fuso Horário
+# Fuso horário para cálculos de tempo
 TZ=America/New_York
 
-# Configurações de Cache (opcional)
+# Configurações de cache
 CACHE_TTL=300
 ENABLE_CACHE=true
+
+# Configurações de debug
+DEBUG_LOGS=false
+LOG_LEVEL=info
 ```
+
+#### 🔍 Como Encontrar o ID da Liga no Sleeper
+
+1. Acesse sua liga no Sleeper (web ou app)
+2. Na URL da liga, o ID é o número longo após `/league/`
+   - Exemplo: `https://sleeper.app/leagues/1180180342143975424/team`
+   - ID da liga: `1180180342143975424`
+
+#### ✅ Validação das Configurações
+
+A aplicação possui validação automática das variáveis de ambiente:
+
+- **IDs de Liga**: Devem ser números de 16-20 dígitos
+- **Configurações Obrigatórias**: `LEAGUE_ID_REDRAFT` e `LEAGUE_ID_DYNASTY`
+- **Fallbacks**: Valores padrão para configurações opcionais
+- **Logs de Erro**: Mensagens detalhadas em caso de configuração inválida
+
+#### 🚨 Importante
+
+- **Nunca commite o arquivo `.env`** - ele já está no `.gitignore`
+- **Use o `.env.example`** como referência para a estrutura
+- **IDs inválidos** resultarão em erro na inicialização da aplicação
 
 ### Deploy no Vercel
 
