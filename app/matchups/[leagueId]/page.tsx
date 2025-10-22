@@ -2,14 +2,17 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import { MatchupView } from '@/lib/matchups';
 import MatchupCard from '@/app/components/MatchupCard';
-
-const LEAGUE_ID_REDRAFT = process.env.NEXT_PUBLIC_LEAGUE_ID_REDRAFT!;
+import { getLeagueConfig } from '@/lib/env-validation';
 
 export default function MatchupsPage() {
   const params = useParams();
   const leagueId = params.leagueId as string;
+  
+  // Obter configurações das ligas
+  const leagueConfig = getLeagueConfig();
   
   const [matchupData, setMatchupData] = useState<MatchupView | null>(null);
   const [loading, setLoading] = useState(true);
@@ -17,14 +20,14 @@ export default function MatchupsPage() {
   const [selectedWeek, setSelectedWeek] = useState<number>(14);
   
   // Determinar tipo de liga e semanas válidas usando useMemo para evitar recriação
-  const leagueConfig = useMemo(() => {
-    const leagueType = leagueId === LEAGUE_ID_REDRAFT ? 'redraft' : 'dynasty';
+  const leagueTypeConfig = useMemo(() => {
+    const leagueType = leagueId === leagueConfig.redraft ? 'redraft' : 'dynasty';
     const leagueName = leagueType === 'redraft' ? 'TFL Redraft' : 'TFL Dynasty';
     const validWeeks = leagueType === 'redraft' ? [14] : [10, 11, 12, 13];
     return { leagueType, leagueName, validWeeks };
-  }, [leagueId]);
+  }, [leagueId, leagueConfig]);
   
-  const { leagueType, leagueName, validWeeks } = leagueConfig;
+  const { leagueType, leagueName, validWeeks } = leagueTypeConfig;
   
   // Definir semana inicial baseada no tipo de liga
   useEffect(() => {
@@ -90,6 +93,15 @@ export default function MatchupsPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
+          <Link 
+            href="/" 
+            className="text-blue-600 hover:text-blue-800 mb-2 inline-flex items-center"
+          >
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Voltar
+          </Link>
           <h1 className="text-3xl font-bold text-text mb-2">
             Preview de Confrontos
           </h1>

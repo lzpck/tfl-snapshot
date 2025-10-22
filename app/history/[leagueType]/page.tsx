@@ -129,71 +129,134 @@ export default function HistoryPage() {
 
   if (!isValidLeagueType) {
     return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold text-text mb-4">Tipo de Liga Inválido</h1>
-        <p className="text-text-muted mb-6">O tipo de liga deve ser &quot;redraft&quot; ou &quot;dynasty&quot;.</p>
-        <Link
-          href="/"
-          className="bg-accent hover:bg-accent-hover text-white px-6 py-2 rounded-lg transition-colors"
-        >
-          Voltar ao Início
-        </Link>
+      <div className="min-h-screen bg-background py-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-12">
+            <Link 
+              href="/" 
+              className="text-blue-600 hover:text-blue-800 mb-4 inline-flex items-center"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Voltar
+            </Link>
+            <h1 className="text-2xl font-bold text-text mb-4">Tipo de Liga Inválido</h1>
+            <p className="text-text-muted mb-6">O tipo de liga deve ser &quot;redraft&quot; ou &quot;dynasty&quot;.</p>
+            <Link
+              href="/"
+              className="bg-accent hover:bg-accent-hover text-white px-6 py-2 rounded-lg transition-colors"
+            >
+              Voltar ao Início
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (loading) {
     return (
-      <div className="text-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto mb-4"></div>
-        <p className="text-text-muted">Carregando histórico...</p>
+      <div className="min-h-screen bg-background py-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-12">
+            <Link 
+              href="/" 
+              className="text-blue-600 hover:text-blue-800 mb-4 inline-flex items-center"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Voltar
+            </Link>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto mb-4"></div>
+            <p className="text-text-muted">Carregando histórico...</p>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold text-text mb-4">Erro</h1>
-        <p className="text-text-muted mb-6">{error}</p>
-        <Link
-          href="/"
-          className="bg-accent hover:bg-accent-hover text-white px-6 py-2 rounded-lg transition-colors"
-        >
-          Voltar ao Início
-        </Link>
+      <div className="min-h-screen bg-background py-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-12">
+            <Link 
+              href="/" 
+              className="text-blue-600 hover:text-blue-800 mb-4 inline-flex items-center"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Voltar
+            </Link>
+            <h1 className="text-2xl font-bold text-text mb-4">Erro</h1>
+            <p className="text-text-muted mb-6">{error}</p>
+            <Link
+              href="/"
+              className="bg-accent hover:bg-accent-hover text-white px-6 py-2 rounded-lg transition-colors"
+            >
+              Voltar ao Início
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!historyData || historyData.seasons.length === 0) {
     return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold text-text mb-4">Sem Dados Históricos</h1>
-        <p className="text-text-muted mb-6">
-          Não há dados históricos disponíveis para {getLeagueDisplayName(leagueType)}.
-        </p>
-        <Link
-          href="/"
-          className="bg-accent hover:bg-accent-hover text-white px-6 py-2 rounded-lg transition-colors"
-        >
-          Voltar ao Início
-        </Link>
+      <div className="min-h-screen bg-background py-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-12">
+            <Link 
+              href="/" 
+              className="text-blue-600 hover:text-blue-800 mb-4 inline-flex items-center"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Voltar
+            </Link>
+            <h1 className="text-2xl font-bold text-text mb-4">Sem Dados Históricos</h1>
+            <p className="text-text-muted mb-6">
+              Não há dados históricos disponíveis para {getLeagueDisplayName(leagueType)}.
+            </p>
+            <Link
+              href="/"
+              className="bg-accent hover:bg-accent-hover text-white px-6 py-2 rounded-lg transition-colors"
+            >
+              Voltar ao Início
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-text mb-2">
-          Histórico - {getLeagueDisplayName(leagueType)}
-        </h1>
-        <p className="text-text-muted">
-          Hall de campeões e classificações finais por temporada
-        </p>
-      </div>
+    <div className="min-h-screen bg-background py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="space-y-8">
+          {/* Header */}
+          <div className="text-center">
+            <Link 
+              href="/" 
+              className="text-blue-600 hover:text-blue-800 mb-4 inline-flex items-center"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Voltar
+            </Link>
+            <h1 className="text-3xl font-bold text-text mb-2">
+              Histórico - {getLeagueDisplayName(leagueType)}
+            </h1>
+            <p className="text-text-muted">
+              Hall de campeões e classificações finais por temporada
+            </p>
+          </div>
 
       {/* Hall de Campeões */}
       <div className="space-y-4">
@@ -396,14 +459,16 @@ export default function HistoryPage() {
         </div>
       </div>
 
-      {/* Botão de voltar */}
-      <div className="text-center pt-8">
-        <Link
-          href="/"
-          className="bg-accent hover:bg-accent-hover text-white px-6 py-2 rounded-lg transition-colors"
-        >
-          Voltar ao Início
-        </Link>
+          {/* Botão de voltar */}
+          <div className="text-center pt-8">
+            <Link
+              href="/"
+              className="bg-accent hover:bg-accent-hover text-white px-6 py-2 rounded-lg transition-colors"
+            >
+              Voltar ao Início
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );

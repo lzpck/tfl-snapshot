@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pairTopXvsTopX, pairDynasty, isValidWeekForLeague, getMatchupRule, MatchupView } from '@/lib/matchups';
-import { Team, getCacheConfig, isInSeason, fetchNFLState } from '@/lib/sleeper';
+import { Team, getCacheConfig, isInSeason } from '@/lib/sleeper';
 
 // Forçar rota dinâmica para evitar problemas de renderização estática
 export const dynamic = 'force-dynamic';
@@ -130,13 +130,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Buscar semana atual da NFL para exibição
-    const nflState = await fetchNFLState();
-    
-    // Montar resposta usando a semana atual da NFL
+    // Montar resposta usando a semana solicitada pelo usuário
     const matchupView: MatchupView = {
       leagueId,
-      week: nflState.display_week, // Usa a semana atual da NFL para exibição
+      week: week, // Usa a semana solicitada pelo usuário
       rule,
       pairs
     };
