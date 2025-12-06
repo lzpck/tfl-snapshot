@@ -23,7 +23,7 @@ export default function MatchupsPage() {
   const leagueTypeConfig = useMemo(() => {
     const leagueType = leagueId === leagueConfig.redraft ? 'redraft' : 'dynasty';
     const leagueName = leagueType === 'redraft' ? 'TFL Redraft' : 'TFL Dynasty';
-    const validWeeks = leagueType === 'redraft' ? [14] : [10, 11, 12, 13];
+    const validWeeks = leagueType === 'redraft' ? [14] : [10, 11, 12, 13, 14, 15, 16];
     return { leagueType, leagueName, validWeeks };
   }, [leagueId, leagueConfig]);
   
@@ -32,7 +32,7 @@ export default function MatchupsPage() {
   // Definir semana inicial baseada no tipo de liga
   useEffect(() => {
     if (leagueType === 'dynasty') {
-      setSelectedWeek(10); // Semana inicial para Dynasty
+      setSelectedWeek(14); // Semana inicial para Dynasty Playoffs
     }
   }, [leagueType]);
 

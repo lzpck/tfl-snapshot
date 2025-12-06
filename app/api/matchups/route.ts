@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pairTopXvsTopX, pairDynasty, isValidWeekForLeague, getMatchupRule, MatchupView } from '@/lib/matchups';
-import { Team, getCacheConfig, isInSeason } from '@/lib/sleeper';
+import { Team, getCacheConfig, isInSeason, fetchWinnersBracket, fetchLeagueData, fetchMatchups, SleeperMatchup } from '@/lib/sleeper';
 
 // Forçar rota dinâmica para evitar problemas de renderização estática
 export const dynamic = 'force-dynamic';
@@ -8,6 +8,31 @@ export const dynamic = 'force-dynamic';
 // IDs das ligas configurados no ambiente
 const LEAGUE_ID_REDRAFT = process.env.LEAGUE_ID_REDRAFT!;
 const LEAGUE_ID_DYNASTY = process.env.LEAGUE_ID_DYNASTY!;
+
+/**
+ * Cria um time placeholder para brackets
+ */
+function createPlaceholderTeam(rosterId: number | null, source?: { w?: number; l?: number } | null): Team {
+  let displayName = 'TBD';
+  
+  if (source?.w) {
+    displayName = `Vencedor M${source.w}`;
+  } else if (source?.l) {
+    displayName = `Perdedor M${source.l}`;
+  }
+
+  return {
+    rank: 99,
+    rosterId: rosterId || 0,
+    ownerId: 'placeholder',
+    displayName,
+    wins: 0,
+    losses: 0,
+    ties: 0,
+    pointsFor: 0,
+    pointsAgainst: 0
+  };
+}
 
 /**
  * API para gerar confrontos (matchups) baseados nas regras específicas de cada liga
@@ -19,6 +44,7 @@ const LEAGUE_ID_DYNASTY = process.env.LEAGUE_ID_DYNASTY!;
  * Regras:
  * - Liga Redraft (week=14): pareamento consecutivo (1vs2, 3vs4, etc.)
  * - Liga Dynasty (week=10,11,12,13): pareamento específico por semana
+ * - Liga Dynasty Playoffs (week=15,16,17): bracket do Sleeper
  */
 export async function GET(request: NextRequest) {
   try {
@@ -64,7 +90,7 @@ export async function GET(request: NextRequest) {
 
     // Validar se a semana é válida para o tipo de liga
     if (!isValidWeekForLeague(leagueType, week)) {
-      const validWeeks = leagueType === 'redraft' ? '14' : '10, 11, 12, 13';
+      const validWeeks = leagueType === 'redraft' ? '14' : '10, 11, 12, 13 (Regular), 15-17 (Playoffs)';
       return NextResponse.json(
         { 
           error: `Semana ${week} não é válida para liga ${leagueType}. Semanas válidas: ${validWeeks}` 
@@ -113,15 +139,104 @@ export async function GET(request: NextRequest) {
         pairs = pairTopXvsTopX(teams);
         rule = getMatchupRule(leagueType, week);
       } else {
-        // Dynasty - validar que temos exatamente 10 times
-        if (teams.length !== 10) {
-          return NextResponse.json(
-            { error: `Liga Dynasty deve ter exatamente 10 times, encontrados: ${teams.length}` },
-            { status: 400 }
-          );
-        }
-        pairs = pairDynasty(teams, week as 10 | 11 | 12 | 13);
         rule = getMatchupRule(leagueType, week);
+        
+        if (rule === 'dynasty-playoffs') {
+          // Buscar dados da liga para saber início dos playoffs
+          // Padrão TFL: Week 14
+          const { league } = await fetchLeagueData(leagueId);
+          const playoffStartWeek = league?.settings?.playoff_week_start || 14; 
+          const round = week - playoffStartWeek + 1;
+
+          // Buscar bracket (Winners)
+          const bracket = await fetchWinnersBracket(leagueId);
+          
+          const roundMatches = bracket.filter(m => m.r === round);
+
+          pairs = roundMatches.map(match => {
+            const home = teams.find(t => t.rosterId === (match.t1 || -1)) 
+              || createPlaceholderTeam(match.t1, match.t1_from);
+              
+            const away = teams.find(t => t.rosterId === (match.t2 || -1)) 
+              || createPlaceholderTeam(match.t2, match.t2_from);
+
+            // Determinar status
+            let status: 'scheduled' | 'in_progress' | 'final' = 'scheduled';
+            
+            // Se houver um vencedor definido no bracket, é final
+            if (match.w) {
+              status = 'final';
+            } else if (home.pointsFor > 0 || away.pointsFor > 0) {
+              // Se não tem vencedor mas tem pontos, está em progresso
+              status = 'in_progress';
+            }
+
+            return { home, away, status };
+          });
+
+        } else {
+          // Dynasty Regular (10-13) - Buscar matchups reais para obter placar
+          // Se a semana já passou ou está em andamento, buscamos da API real do Sleeper
+          // para ter os pontos exatos.
+          
+          try {
+            // Tentar buscar matchups reais da API
+            // OBS: Só faz sentido se a semana já tiver matchups gerados no Sleeper
+            const realMatchups = await fetchMatchups(leagueId, week);
+            
+            if (realMatchups && realMatchups.length > 0) {
+               // Agrupar por matchup_id
+               const matchupMap = new Map<number, SleeperMatchup[]>();
+               realMatchups.forEach(m => {
+                 if (!matchupMap.has(m.matchup_id)) matchupMap.set(m.matchup_id, []);
+                 matchupMap.get(m.matchup_id)?.push(m);
+               });
+               
+               pairs = Array.from(matchupMap.values()).map(match => {
+                 const m1 = match[0];
+                 const m2 = match[1];
+                 
+                 // Encontrar times
+                 const t1 = teams.find(t => t.rosterId === m1.roster_id);
+                 const t2 = teams.find(t => t.rosterId === m2.roster_id);
+                 
+                 if (!t1 || !t2) return null;
+                 
+                 // Atualizar pontos com o valor real do matchup
+                 const home = { ...t1, pointsFor: m1.points };
+                 const away = { ...t2, pointsFor: m2.points };
+
+                 // Status
+                 let status: 'scheduled' | 'in_progress' | 'final' = 'scheduled';
+                 // Semanas 10-13 são passadas em relação ao playoff (14)
+                 if (home.pointsFor > 0 && away.pointsFor > 0) {
+                    status = 'final';
+                 }
+
+                 return { home, away, status };
+               }).filter(p => p !== null) as { home: Team, away: Team, status?: 'scheduled' | 'in_progress' | 'final' }[];
+               
+            } 
+            
+            // Fallback: Se não encontrou matchups reais (ex: futuro muito distante ou erro), 
+            // usa a lógica de projeção fixa
+            if (!pairs || pairs.length === 0) {
+               if (teams.length !== 10) {
+                  throw new Error(`Liga Dynasty deve ter exatamente 10 times, encontrados: ${teams.length}`);
+               }
+               pairs = pairDynasty(teams, week as 10 | 11 | 12 | 13);
+               pairs.forEach(p => p.status = 'scheduled');
+            }
+            
+          } catch (err) {
+            console.warn('Erro ao buscar matchups reais, usando fallback:', err);
+             if (teams.length !== 10) {
+                throw new Error(`Liga Dynasty deve ter exatamente 10 times, encontrados: ${teams.length}`);
+             }
+             pairs = pairDynasty(teams, week as 10 | 11 | 12 | 13);
+             pairs.forEach(p => p.status = 'scheduled');
+          }
+        }
       }
     } catch (error) {
       return NextResponse.json(

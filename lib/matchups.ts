@@ -1,9 +1,12 @@
 import { Team } from './sleeper';
 
 // Tipos para os confrontos
+export type MatchStatus = 'scheduled' | 'in_progress' | 'final';
+
 export type Pair = {
   home: Team;
   away: Team;
+  status?: MatchStatus;
 };
 
 export type MatchupView = {
@@ -27,8 +30,9 @@ export function pairTopXvsTopX(teams: Team[]): Pair[] {
     if (i + 1 < teams.length) {
       pairs.push({
         home: teams[i],     // Time com ranking melhor (menor número)
-        away: teams[i + 1]  // Time com ranking pior (maior número)
-      });
+        away: teams[i + 1],  // Time com ranking pior (maior número)
+        status: 'scheduled' // Redraft week 14 is conceptually always "scheduled" or "in_progress" depending on context, handled by API
+      } as Pair);
     }
   }
   
@@ -70,7 +74,8 @@ export function pairDynasty(teams: Team[], week: 10 | 11 | 12 | 13): Pair[] {
   for (const [homeIndex, awayIndex] of rules) {
     pairs.push({
       home: teams[homeIndex],
-      away: teams[awayIndex]
+      away: teams[awayIndex],
+      status: 'scheduled' // Default for fixed pairing, implementation will update this
     });
   }
   
@@ -89,7 +94,9 @@ export function isValidWeekForLeague(leagueType: 'redraft' | 'dynasty', week: nu
   }
   
   if (leagueType === 'dynasty') {
-    return [10, 11, 12, 13].includes(week);
+    // 10-13: Regular Dynasty Matchups
+    // 14-16: Playoffs Dynasty (TFL Custom Rule)
+    return [10, 11, 12, 13, 14, 15, 16].includes(week);
   }
   
   return false;
@@ -106,8 +113,13 @@ export function getMatchupRule(leagueType: 'redraft' | 'dynasty', week: number):
     return 'redraft-topx';
   }
   
-  if (leagueType === 'dynasty' && [10, 11, 12, 13].includes(week)) {
-    return `dynasty-week${week}`;
+  if (leagueType === 'dynasty') {
+    if ([10, 11, 12, 13].includes(week)) {
+      return `dynasty-week${week}`;
+    }
+    if ([14, 15, 16].includes(week)) {
+      return 'dynasty-playoffs';
+    }
   }
   
   throw new Error(`Combinação inválida: ${leagueType} semana ${week}`);

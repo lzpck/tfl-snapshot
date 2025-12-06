@@ -5,6 +5,7 @@ export interface SleeperLeague {
   season: string;
   settings: {
     week?: number;
+    playoff_week_start?: number;
   };
 }
 
@@ -12,7 +13,9 @@ export interface SleeperUser {
   user_id: string;
   display_name: string;
   username: string;
+  avatar?: string;
 }
+
 
 export interface SleeperRoster {
   roster_id: number;
@@ -35,11 +38,23 @@ export interface SleeperMatchup {
   points: number;
 }
 
+export interface SleeperBracketMatch {
+  r: number;      // Round
+  m: number;      // Match ID
+  t1: number | null; // Roster ID 1 (pode ser null se TBD)
+  t2: number | null; // Roster ID 2 (pode ser null se TBD)
+  w: number | null; // Winner Roster ID
+  l: number | null; // Loser Roster ID
+  t1_from?: { w?: number; l?: number } | null;
+  t2_from?: { w?: number; l?: number } | null;
+}
+
 export interface Team {
   rank: number;
   rosterId: number;
   ownerId: string;
   displayName: string;
+  avatarUrl?: string;
   wins: number;
   losses: number;
   ties: number;
@@ -428,12 +443,17 @@ export function mapSleeperDataToTeams(
       let displayName = userMap.get(roster.owner_id);
       let nameSource = 'userMap';
       
+      let matchingUser: SleeperUser | undefined;
+
       // Se não encontrou o usuário no mapa, tentar estratégias alternativas
-      if (!displayName) {
+      if (displayName) {
+        // Encontrar usuário correspondente para obter avatar
+        matchingUser = users.find(u => u.user_id === roster.owner_id);
+      } else {
         console.warn(`[MAPPING ${timestamp}] ⚠️ Usuário não encontrado para owner_id: ${roster.owner_id}. Tentando estratégias alternativas.`);
         
         // Tentar encontrar por correspondência parcial ou outros métodos
-        const matchingUser = users.find(user => 
+        matchingUser = users.find(user => 
           user && (
             user.user_id === roster.owner_id ||
             user.username === roster.owner_id ||
@@ -465,10 +485,12 @@ export function mapSleeperDataToTeams(
       const fpts = (settings.fpts || 0) + ((settings.fpts_decimal || 0) / 100);
       const fpts_against = (settings.fpts_against || 0) + ((settings.fpts_against_decimal || 0) / 100);
       
-      const team = {
+      const team: Team = {
+        rank: 0, // Será preenchido posteriormente
         rosterId: roster.roster_id,
         ownerId: roster.owner_id || 'unknown',
-        displayName: displayName || `Time ${roster.roster_id}`, // Garantia final
+        displayName: displayName || `Time ${roster.roster_id}`,
+        avatarUrl: matchingUser?.avatar ? `https://sleepercdn.com/avatars/${matchingUser.avatar}` : undefined,
         wins,
         losses,
         ties,
@@ -492,4 +514,42 @@ export function mapSleeperDataToTeams(
   }
   
   return mappedTeams;
+}
+
+// Busca a chave dos playoffs (winners bracket)
+export async function fetchWinnersBracket(leagueId: string, useCache = true): Promise<SleeperBracketMatch[]> {
+  const baseUrl = 'https://api.sleeper.app/v1';
+  const cacheConfig = getCacheConfig();
+  
+  const cacheOptions = useCache ? {
+    revalidate: cacheConfig.matchupsTTL,
+    cacheKey: `bracket-winners-${leagueId}`
+  } : {};
+  
+  try {
+    const bracket = await fetchJSON<SleeperBracketMatch[]>(`${baseUrl}/league/${leagueId}/winners_bracket`, cacheOptions);
+    return bracket || [];
+  } catch (error) {
+    console.error(`Erro ao buscar bracket da liga ${leagueId}:`, error);
+    return [];
+  }
+}
+
+// Busca os confrontos diretos de uma semana específica com pontuação
+export async function fetchMatchups(leagueId: string, week: number, useCache = true): Promise<SleeperMatchup[]> {
+  const baseUrl = 'https://api.sleeper.app/v1';
+  const cacheConfig = getCacheConfig();
+  
+  const cacheOptions = useCache ? {
+    revalidate: cacheConfig.matchupsTTL,
+    cacheKey: `matchups-${leagueId}-week-${week}`
+  } : {};
+  
+  try {
+    const matchups = await fetchJSON<SleeperMatchup[]>(`${baseUrl}/league/${leagueId}/matchups/${week}`, cacheOptions);
+    return matchups || [];
+  } catch (error) {
+    console.error(`Erro ao buscar matchups da liga ${leagueId} semana ${week}:`, error);
+    return [];
+  }
 }
