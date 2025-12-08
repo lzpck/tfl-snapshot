@@ -189,12 +189,11 @@ export default function StandingsPage() {
         const awayPointsSim = userOverrides[pair.away.rosterId] ?? awayPointsLive;
 
         // Apply new Total Points Logic
-        // Projected = (Current Total in Standings - Live Match Points) + Simulated Match Points
-        // Note: Assuming 'data.teams' is reasonably up to date with 'pair.pointsFor'. 
-        // If data.teams.pointsFor lags behind, this diff might be slightly off, but usually it's correct.
+        // Projected = Current Total in Standings + Simulated Match Points
+        // We assume 'data.teams.pointsFor' (from Rosters DB) does NOT yet include the live week's points.
         
-        homeTeam.pointsFor = (homeTeam.pointsFor - homePointsLive) + homePointsSim;
-        awayTeam.pointsFor = (awayTeam.pointsFor - awayPointsLive) + awayPointsSim;
+        homeTeam.pointsFor = homeTeam.pointsFor + homePointsSim;
+        awayTeam.pointsFor = awayTeam.pointsFor + awayPointsSim;
 
         // Projetar W/L baseado no placar SIMULADO
         if (homePointsSim > awayPointsSim) {
@@ -409,9 +408,11 @@ export default function StandingsPage() {
                  <div>
                    <h4 className="text-blue-400 font-medium">Modo Simulação Interativo</h4>
                    <p className="text-sm text-blue-300/80 mt-1">
-                     Altere os placares nos confrontos ao lado para simular cenários. 
-                     A tabela atualizará automaticamente. 
-                     Valores destacados indicam edição manual.
+                     Altere os placares para projetar a classificação. 
+                     <br/>
+                     <span className="opacity-75 text-xs">
+                       Cálculo: Total Anterior + Placar Simulado.
+                     </span>
                    </p>
                  </div>
                </div>
@@ -534,19 +535,24 @@ export default function StandingsPage() {
                               </span>
                               <span className="text-xs text-text-muted">Casa</span>
                            </div>
-                           <ScoreInput 
-                              value={userOverrides[pair.home.rosterId]}
-                              originalValue={pair.home.pointsFor}
-                              onChange={(val) => {
-                                 const num = val === '' ? undefined : parseFloat(val);
-                                 setUserOverrides(prev => {
-                                    const next = { ...prev };
-                                    if (num === undefined) delete next[pair.home.rosterId];
-                                    else next[pair.home.rosterId] = num;
-                                    return next;
-                                 });
-                              }}
-                           />
+                           <div className="flex flex-col items-end gap-1">
+                             <ScoreInput 
+                                value={userOverrides[pair.home.rosterId]}
+                                originalValue={pair.home.pointsFor}
+                                onChange={(val) => {
+                                   const num = val === '' ? undefined : parseFloat(val);
+                                   setUserOverrides(prev => {
+                                      const next = { ...prev };
+                                      if (num === undefined) delete next[pair.home.rosterId];
+                                      else next[pair.home.rosterId] = num;
+                                      return next;
+                                   });
+                                }}
+                             />
+                             <div className="text-[10px] text-text-muted">
+                               Real: {pair.home.pointsFor.toFixed(2)}
+                             </div>
+                           </div>
                         </div>
 
                         {/* VS Separator */}
@@ -564,19 +570,24 @@ export default function StandingsPage() {
                               </span>
                               <span className="text-xs text-text-muted">Visitante</span>
                            </div>
-                           <ScoreInput 
-                              value={userOverrides[pair.away.rosterId]}
-                              originalValue={pair.away.pointsFor}
-                              onChange={(val) => {
-                                 const num = val === '' ? undefined : parseFloat(val);
-                                 setUserOverrides(prev => {
-                                    const next = { ...prev };
-                                    if (num === undefined) delete next[pair.away.rosterId];
-                                    else next[pair.away.rosterId] = num;
-                                    return next;
-                                 });
-                              }}
-                           />
+                           <div className="flex flex-col items-end gap-1">
+                             <ScoreInput 
+                                value={userOverrides[pair.away.rosterId]}
+                                originalValue={pair.away.pointsFor}
+                                onChange={(val) => {
+                                   const num = val === '' ? undefined : parseFloat(val);
+                                   setUserOverrides(prev => {
+                                      const next = { ...prev };
+                                      if (num === undefined) delete next[pair.away.rosterId];
+                                      else next[pair.away.rosterId] = num;
+                                      return next;
+                                   });
+                                }}
+                             />
+                             <div className="text-[10px] text-text-muted">
+                               Real: {pair.away.pointsFor.toFixed(2)}
+                             </div>
+                           </div>
                         </div>
                      </div>
                    </div>
