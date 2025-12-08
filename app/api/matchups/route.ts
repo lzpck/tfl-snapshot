@@ -138,6 +138,43 @@ export async function GET(request: NextRequest) {
       if (leagueType === 'redraft') {
         pairs = pairTopXvsTopX(teams);
         rule = getMatchupRule(leagueType, week);
+
+        // Buscar pontuações reais da semana para atualizar os confrontos simulados
+        try {
+          const realMatchups = await fetchMatchups(leagueId, week);
+          
+          if (realMatchups && realMatchups.length > 0) {
+            const pointsMap = new Map<number, number>();
+            realMatchups.forEach(m => pointsMap.set(m.roster_id, m.points));
+
+            pairs.forEach(pair => {
+              // Atualizar Home
+              const homePoints = pointsMap.get(pair.home.rosterId);
+              if (homePoints !== undefined) {
+                // Criar cópia para não mutar o objeto original do time
+                pair.home = { ...pair.home, pointsFor: homePoints };
+              } else {
+                pair.home = { ...pair.home, pointsFor: 0 };
+              }
+
+              // Atualizar Away
+              const awayPoints = pointsMap.get(pair.away.rosterId);
+              if (awayPoints !== undefined) {
+                 pair.away = { ...pair.away, pointsFor: awayPoints };
+              } else {
+                 pair.away = { ...pair.away, pointsFor: 0 };
+              }
+            });
+          }
+        } catch (err) {
+          console.warn('Erro ao buscar scores reais para Redraft:', err);
+          // Em caso de erro, mantemos os pontos originais (Total) ou zeramos?
+          // Melhor zerar para evitar confusão com Total Season Points
+          pairs.forEach(pair => {
+            pair.home = { ...pair.home, pointsFor: 0 };
+            pair.away = { ...pair.away, pointsFor: 0 };
+          });
+        }
       } else {
         rule = getMatchupRule(leagueType, week);
         
