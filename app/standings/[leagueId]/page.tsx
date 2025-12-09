@@ -336,6 +336,9 @@ export default function StandingsPage() {
   const leagueType = getLeagueType(data.leagueId);
   const playoffConfig = getPlayoffConfig(leagueType);
 
+  // Flag para controlar visibilidade da aba de simulação
+  const SIMULATION_ENABLED = false;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -359,7 +362,7 @@ export default function StandingsPage() {
         </div>
       </div>
 
-      {leagueType === 'redraft' && (
+      {leagueType === 'redraft' && SIMULATION_ENABLED && (
         <div className="border-b border-border">
           <nav className="-mb-px flex space-x-8">
             <button
