@@ -190,26 +190,50 @@ export async function GET(request: NextRequest) {
           
           const roundMatches = bracket.filter(m => m.r === round);
 
-          pairs = roundMatches.map(match => {
-            const home = teams.find(t => t.rosterId === (match.t1 || -1)) 
-              || createPlaceholderTeam(match.t1, match.t1_from);
-              
-            const away = teams.find(t => t.rosterId === (match.t2 || -1)) 
-              || createPlaceholderTeam(match.t2, match.t2_from);
-
-            // Determinar status
-            let status: 'scheduled' | 'in_progress' | 'final' = 'scheduled';
-            
-            // Se houver um vencedor definido no bracket, é final
-            if (match.w) {
-              status = 'final';
-            } else if (home.pointsFor > 0 || away.pointsFor > 0) {
-              // Se não tem vencedor mas tem pontos, está em progresso
-              status = 'in_progress';
+            // Buscar matchups reais para obter placar da semana
+            const pointsMap = new Map<number, number>();
+            try {
+              const realMatchups = await fetchMatchups(leagueId, week);
+              if (realMatchups && realMatchups.length > 0) {
+                realMatchups.forEach(m => pointsMap.set(m.roster_id, m.points));
+              }
+            } catch (err) {
+              console.warn('Erro ao buscar scores reais para Dynasty Playoffs:', err);
             }
 
-            return { home, away, status };
-          });
+            pairs = roundMatches.map(match => {
+              const t1 = teams.find(t => t.rosterId === (match.t1 || -1));
+              const t2 = teams.find(t => t.rosterId === (match.t2 || -1));
+              
+              const home = t1 ? { ...t1 } : createPlaceholderTeam(match.t1, match.t1_from);
+              const away = t2 ? { ...t2 } : createPlaceholderTeam(match.t2, match.t2_from);
+
+              // Atualizar pontos com o valor real da semana
+              if (match.t1 && pointsMap.has(match.t1)) {
+                home.pointsFor = pointsMap.get(match.t1) || 0;
+              } else {
+                home.pointsFor = 0; // Se não tem matchup real ou é TBD, score é 0
+              }
+
+              if (match.t2 && pointsMap.has(match.t2)) {
+                away.pointsFor = pointsMap.get(match.t2) || 0;
+              } else {
+                away.pointsFor = 0;
+              }
+
+              // Determinar status
+              let status: 'scheduled' | 'in_progress' | 'final' = 'scheduled';
+              
+              // Se houver um vencedor definido no bracket, é final
+              if (match.w) {
+                status = 'final';
+              } else if (home.pointsFor > 0 || away.pointsFor > 0) {
+                // Se não tem vencedor mas tem pontos, está em progresso
+                status = 'in_progress';
+              }
+
+              return { home, away, status };
+            });
 
         } else {
           // Dynasty Regular (10-13) - Buscar matchups reais para obter placar
