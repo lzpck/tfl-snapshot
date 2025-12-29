@@ -30,7 +30,8 @@ function createPlaceholderTeam(rosterId: number | null, source?: { w?: number; l
     losses: 0,
     ties: 0,
     pointsFor: 0,
-    pointsAgainst: 0
+    pointsAgainst: 0,
+    ppts: 0
   };
 }
 

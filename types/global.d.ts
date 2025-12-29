@@ -9,6 +9,7 @@ interface MemoryCacheInterface {
 }
 
 declare global {
+  // eslint-disable-next-line no-var
   var memoryCache: MemoryCacheInterface | undefined;
 }
 

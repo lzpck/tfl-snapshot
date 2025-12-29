@@ -28,6 +28,8 @@ export interface SleeperRoster {
     fpts_against?: number;
     fpts_decimal?: number;
     fpts_against_decimal?: number;
+    ppts?: number;
+    ppts_decimal?: number;
   };
 }
 
@@ -48,6 +50,7 @@ export interface SleeperBracketMatch {
   t1_from?: { w?: number; l?: number } | null;
   t2_from?: { w?: number; l?: number } | null;
   p?: number; // Position (1st, 3rd, 5th etc) - inferred field
+  id?: number | string; // Optional unique ID if available
 }
 
 export interface Team {
@@ -61,6 +64,7 @@ export interface Team {
   ties: number;
   pointsFor: number;
   pointsAgainst: number;
+  ppts: number;
 }
 
 // Interface para o estado atual da NFL
@@ -69,6 +73,52 @@ export interface SleeperNFLState {
   display_week: number;
   season_type: string;
   leg: number;
+}
+
+export interface SleeperDraft {
+  draft_id: string;
+  league_id: string;
+  season: string;
+  status: 'pre_draft' | 'drafting' | 'complete';
+  type: string;
+  settings: {
+    rounds: number;
+    slots_bn: number;
+    slots_flex: number;
+    teams: number;
+  };
+  draft_order: Record<string, number> | null; // userid -> order
+  slot_to_roster_id: Record<string, number> | null;
+  season_type: string;
+  start_time: number;
+  last_picked: number;
+}
+
+export interface SleeperDraftPick {
+  round: number;
+  roster_id: number;
+  player_id: string;
+  picked_by: string;
+  draft_id: string;
+  pick_no: number;
+  metadata: {
+    first_name: string;
+    last_name: string;
+    position: string;
+    team: string;
+    status: string;
+    sport: string;
+    number: string;
+    player_id: string;
+  };
+}
+
+export interface SleeperTradedPick {
+  season: string;
+  round: number;
+  roster_id: number; // original owner roster id
+  owner_id: number; // current owner roster id
+  previous_owner_id: number;
 }
 
 // Sistema de cache in-memory
@@ -485,6 +535,7 @@ export function mapSleeperDataToTeams(
       // Combinar valores inteiros com decimais para formar o valor completo
       const fpts = (settings.fpts || 0) + ((settings.fpts_decimal || 0) / 100);
       const fpts_against = (settings.fpts_against || 0) + ((settings.fpts_against_decimal || 0) / 100);
+      const ppts = (settings.ppts || 0) + ((settings.ppts_decimal || 0) / 100);
       
       const team: Team = {
         rank: 0, // Será preenchido posteriormente
@@ -496,7 +547,8 @@ export function mapSleeperDataToTeams(
         losses,
         ties,
         pointsFor: fpts ? parseFloat(fpts.toFixed(2)) : 0,
-        pointsAgainst: fpts_against ? parseFloat(fpts_against.toFixed(2)) : 0
+        pointsAgainst: fpts_against ? parseFloat(fpts_against.toFixed(2)) : 0,
+        ppts: ppts ? parseFloat(ppts.toFixed(2)) : 0
       };
       
       // Log detalhado para cada time mapeado
@@ -551,6 +603,63 @@ export async function fetchMatchups(leagueId: string, week: number, useCache = t
     return matchups || [];
   } catch (error) {
     console.error(`Erro ao buscar matchups da liga ${leagueId} semana ${week}:`, error);
+    return [];
+  }
+}
+
+// Busca os drafts de uma liga
+export async function fetchDrafts(leagueId: string, useCache = true): Promise<SleeperDraft[]> {
+  const baseUrl = 'https://api.sleeper.app/v1';
+  // const cacheConfig = getCacheConfig(); // Unused
+  
+  const cacheOptions = useCache ? {
+    revalidate: 60, // Usar revalidate fixo para drafts por enquanto ou getCacheConfig().matchupsTTL se precisar
+    cacheKey: `drafts-${leagueId}`
+  } : {};
+  
+  try {
+    const drafts = await fetchJSON<SleeperDraft[]>(`${baseUrl}/league/${leagueId}/drafts`, cacheOptions);
+    return drafts || [];
+  } catch (error) {
+    console.error(`Erro ao buscar drafts da liga ${leagueId}:`, error);
+    return [];
+  }
+}
+
+// Busca picks já realizadas em um draft
+export async function fetchDraftPicks(draftId: string, useCache = true): Promise<SleeperDraftPick[]> {
+  const baseUrl = 'https://api.sleeper.app/v1';
+  // const cacheConfig = getCacheConfig(); // Unused
+  
+  const cacheOptions = useCache ? {
+    revalidate: 60,
+    cacheKey: `draft-picks-${draftId}`
+  } : {};
+  
+  try {
+    const picks = await fetchJSON<SleeperDraftPick[]>(`${baseUrl}/draft/${draftId}/picks`, cacheOptions);
+    return picks || [];
+  } catch (error) {
+    console.error(`Erro ao buscar picks do draft ${draftId}:`, error);
+    return [];
+  }
+}
+
+// Busca picks trocadas em um draft específico
+export async function fetchTradedPicks(draftId: string, useCache = true): Promise<SleeperTradedPick[]> {
+  const baseUrl = 'https://api.sleeper.app/v1';
+  // const cacheConfig = getCacheConfig(); // Unused
+  
+  const cacheOptions = useCache ? {
+    revalidate: 60,
+    cacheKey: `draft-traded-picks-${draftId}`
+  } : {};
+  
+  try {
+    const tradedPicks = await fetchJSON<SleeperTradedPick[]>(`${baseUrl}/draft/${draftId}/traded_picks`, cacheOptions);
+    return tradedPicks || [];
+  } catch (error) {
+    console.error(`Erro ao buscar traded picks do draft ${draftId}:`, error);
     return [];
   }
 }

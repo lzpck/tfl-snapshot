@@ -60,6 +60,15 @@ export default function Home() {
               >
                 Ver Histórico
               </Link>
+
+              {league.type === 'dynasty' && (
+                <Link 
+                  href={`/draft/${league.id}`}
+                  className="block w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-3 px-4 rounded-lg text-center transition-colors"
+                >
+                  Ver Draft Order
+                </Link>
+              )}
             </div>
           </div>
         ))}
