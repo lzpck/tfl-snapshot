@@ -9,11 +9,30 @@ export type Pair = {
   status?: MatchStatus;
 };
 
+
+export type BracketMatch = {
+  id: number; // matchup_id or unique id in bracket
+  round: number;
+  week: number;
+  home: Team;
+  away: Team;
+  status: MatchStatus;
+  winner_id?: number;
+  title?: string;
+};
+
+export type BracketRound = {
+  round: number;
+  week: number;
+  matches: BracketMatch[];
+};
+
 export type MatchupView = {
   leagueId: string;
   week: number;
   rule: string;
   pairs: Pair[];
+  bracket?: BracketRound[];
 };
 
 /**
@@ -88,36 +107,34 @@ export function pairDynasty(teams: Team[], week: 10 | 11 | 12 | 13): Pair[] {
  * @param week Número da semana
  * @returns true se a semana é válida para o tipo de liga
  */
+// Função auxiliar para validar se uma semana é válida para uma liga
 export function isValidWeekForLeague(leagueType: 'redraft' | 'dynasty', week: number): boolean {
   if (leagueType === 'redraft') {
-    return week === 14;
+    // Redraft: Week 14 (Regular finale) + 15-17 (Playoffs)
+    return [14, 15, 16, 17].includes(week);
   }
   
   if (leagueType === 'dynasty') {
     // 10-13: Regular Dynasty Matchups
-    // 14-16: Playoffs Dynasty (TFL Custom Rule)
-    return [10, 11, 12, 13, 14, 15, 16].includes(week);
+    // 14-17: Playoffs Dynasty
+    return [10, 11, 12, 13, 14, 15, 16, 17].includes(week);
   }
   
   return false;
 }
 
-/**
- * Função auxiliar para determinar o tipo de regra baseado na liga e semana
- * @param leagueType Tipo da liga
- * @param week Número da semana
- * @returns String identificando a regra aplicada
- */
+// Função auxiliar para determinar o tipo de regra baseado na liga e semana
 export function getMatchupRule(leagueType: 'redraft' | 'dynasty', week: number): string {
-  if (leagueType === 'redraft' && week === 14) {
-    return 'redraft-topx';
+  if (leagueType === 'redraft') {
+    if (week === 14) return 'redraft-topx';
+    if (week >= 15) return 'playoffs';
   }
   
   if (leagueType === 'dynasty') {
     if ([10, 11, 12, 13].includes(week)) {
       return `dynasty-week${week}`;
     }
-    if ([14, 15, 16].includes(week)) {
+    if (week >= 14) {
       return 'dynasty-playoffs';
     }
   }

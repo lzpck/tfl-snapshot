@@ -47,6 +47,7 @@ export interface SleeperBracketMatch {
   l: number | null; // Loser Roster ID
   t1_from?: { w?: number; l?: number } | null;
   t2_from?: { w?: number; l?: number } | null;
+  p?: number; // Position (1st, 3rd, 5th etc) - inferred field
 }
 
 export interface Team {

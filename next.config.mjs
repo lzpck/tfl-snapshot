@@ -3,6 +3,16 @@ import withPWA from '@ducanh2912/next-pwa';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Configurações gerais do Next.js
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'sleepercdn.com',
+        port: '',
+        pathname: '/**',
+      },
+    ],
+  },
   experimental: {
     optimizePackageImports: ['react-icons']
   },
