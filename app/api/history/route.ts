@@ -1198,7 +1198,8 @@ export async function GET(request: NextRequest) {
       };
     } else if (leagueType === 'dynasty') {
       leagueIds = {
-        '2024': process.env.LEAGUE_ID_DYNASTY_2024 || ''
+        '2024': process.env.LEAGUE_ID_DYNASTY_2024 || '',
+        '2025': process.env.LEAGUE_ID_DYNASTY_2025 || ''
       };
     }
     

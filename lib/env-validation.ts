@@ -18,6 +18,7 @@ export interface LeagueConfig {
     };
     dynasty: {
       2024: string;
+      2025: string;
     };
   };
 }
@@ -93,6 +94,7 @@ export function validateLeagueConfig(): LeagueConfig {
         },
         dynasty: {
           2024: getEnvWithDefault('LEAGUE_ID_DYNASTY_2024', ''),
+          2025: getEnvWithDefault('LEAGUE_ID_DYNASTY_2025', ''),
         },
       },
     };
