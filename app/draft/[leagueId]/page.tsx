@@ -18,7 +18,71 @@ export default async function DraftPage(props: { params: Promise<{ leagueId: str
   ]);
 
   // Adicionar rank: 0 para satisfazer a interface Team
-  const teams = mapSleeperDataToTeams(users, rosters).map(t => ({ ...t, rank: 0 }));
+  let teams = mapSleeperDataToTeams(users, rosters).map(t => ({ ...t, rank: 0 }));
+
+  let activeWinnersBracket = winnersBracket;
+
+  // SEÇÃO DE CORREÇÃO DE DRAFT ORDER
+  // Se os times não tiverem stats (wins/points) na temporada atual (ex: início de temporada),
+  // e houver uma liga anterior, buscar os dados da liga anterior para determinar a ordem.
+  const hasStats = teams.some(t => t.wins > 0 || t.losses > 0 || t.pointsFor > 0);
+
+  if (!hasStats && league?.previous_league_id) {
+    console.log(`[DRAFT_PAGE] Detectado início de temporada (sem stats). Buscando dados da liga anterior (${league.previous_league_id}) para calcular ordem.`);
+    
+    try {
+      const [prevLeagueData, prevBracket] = await Promise.all([
+        fetchLeagueData(league.previous_league_id),
+        fetchWinnersBracket(league.previous_league_id)
+      ]);
+
+      if (prevLeagueData.rosters && prevLeagueData.rosters.length > 0) {
+        // Mapa para armazenar correspondência Old Roster ID -> New Roster ID
+        // Essencial caso os IDs mudem na renovação da liga
+        const oldToNewRosterId = new Map<number, number>();
+
+        // Atualizar stats dos times atuais com base nos rosters da temporada anterior
+        teams = teams.map(team => {
+          // Tenta encontrar correspondência por roster_id (Sleeper geralmente mantém) ou owner_id
+          let prevRoster = prevLeagueData.rosters.find(pr => pr.roster_id === team.rosterId);
+          
+          // Se não achar, tenta por owner_id
+          if (!prevRoster) {
+             prevRoster = prevLeagueData.rosters.find(pr => pr.owner_id === team.ownerId);
+          }
+
+          if (prevRoster) {
+            // Registrar mapeamento
+            oldToNewRosterId.set(prevRoster.roster_id, team.rosterId);
+
+            const s = prevRoster.settings;
+            return {
+              ...team,
+              wins: s.wins,
+              losses: s.losses,
+              ties: s.ties,
+              pointsFor: (s.fpts || 0) + ((s.fpts_decimal || 0) / 100),
+              ppts: (s.ppts || 0) + ((s.ppts_decimal || 0) / 100)
+            };
+          }
+          return team;
+        });
+
+        // Substituir o bracket atual (vazio) pelo anterior e MAPEAR IDs se necessário
+        if (prevBracket && prevBracket.length > 0) {
+           activeWinnersBracket = prevBracket.map(match => ({
+              ...match,
+              w: match.w ? (oldToNewRosterId.get(match.w) || match.w) : match.w,
+              l: match.l ? (oldToNewRosterId.get(match.l) || match.l) : match.l,
+              t1: match.t1 ? (oldToNewRosterId.get(match.t1) || match.t1) : match.t1,
+              t2: match.t2 ? (oldToNewRosterId.get(match.t2) || match.t2) : match.t2,
+           }));
+        }
+      }
+    } catch (err) {
+      console.error('[DRAFT_PAGE] Erro ao buscar dados históricos:', err);
+    }
+  }
 
   if (!league) {
     return (
@@ -99,7 +163,7 @@ export default async function DraftPage(props: { params: Promise<{ leagueId: str
          draft={relevantDraft} 
          tradedPicks={tradedPicks} 
          teams={teams}
-         winnersBracket={winnersBracket}
+         winnersBracket={activeWinnersBracket}
        />
      </div>
   );
