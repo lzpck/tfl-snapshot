@@ -271,59 +271,103 @@ export async function GET(request: NextRequest) {
       }
 
       // Se não for playoffs ou se falhou em gerar bracket, fallback para lógica regular
+      // Se não for playoffs ou se falhou em gerar bracket, fallback para lógica regular
       if ((!pairs || pairs.length === 0) && !bracket) {
-         if (leagueType === 'redraft') {
-            pairs = pairTopXvsTopX(teams);
-            if (rule === 'redraft-topx') {
-                 try {
+         
+         // Helper para buscar standard matchups
+         const fetchStandardMatchups = async () => {
+             const realMatchups = await fetchMatchups(leagueId, week);
+             if (realMatchups && realMatchups.length > 0) {
+                 const matchupMap = new Map<number, SleeperMatchup[]>();
+                 realMatchups.forEach(m => {
+                   if (!matchupMap.has(m.matchup_id)) matchupMap.set(m.matchup_id, []);
+                   matchupMap.get(m.matchup_id)?.push(m);
+                 });
+                 
+                 return Array.from(matchupMap.values()).map(match => {
+                   const m1 = match[0];
+                   const m2 = match[1];
+                   if (!m1) return null;
+                   
+                   // Se for ímpar (bye week?) ou m2 não existir
+                   if (!m2) {
+                       const t1 = teams.find(t => t.rosterId === m1.roster_id);
+                       if (!t1) return null;
+                       return {
+                           home: { ...t1, pointsFor: m1.points },
+                           away: { displayName: 'BYE', pointsFor: 0, rosterId: -1, ownerId: 'bye', wins: 0, losses: 0, ties: 0, pointsAgainst: 0, ppts: 0, rank: 99 } as Team,
+                           status: 'final'
+                       };
+                   }
+
+                   const t1 = teams.find(t => t.rosterId === m1.roster_id);
+                   const t2 = teams.find(t => t.rosterId === m2.roster_id);
+                   
+                   if (!t1 || !t2) return null;
+                   
+                   const home = { ...t1, pointsFor: m1.points };
+                   const away = { ...t2, pointsFor: m2.points };
+                   
+                   let s: 'scheduled' | 'in_progress' | 'final' = 'scheduled';
+                   if (home.pointsFor > 0 || away.pointsFor > 0) s = 'final';
+                   
+                   return { home, away, status: s };
+                 }).filter((p): p is { home: Team, away: Team, status: string } => p !== null);
+             }
+             return [];
+         };
+
+         // 1. Tentar regras customizadas
+         if (leagueType === 'redraft' && rule === 'redraft-topx') {
+            try {
+                // Tenta gerar pares customizados
+                const customPairs = pairTopXvsTopX(teams);
+                const realMatchups = await fetchMatchups(leagueId, week);
+                
+                if (realMatchups && realMatchups.length > 0) {
+                    const pMap = new Map<number, number>();
+                    realMatchups.forEach(m => pMap.set(m.roster_id, m.points));
+                    
+                    pairs = customPairs.map(pair => ({
+                        home: { ...pair.home, pointsFor: pMap.get(pair.home.rosterId) || 0 },
+                        away: { ...pair.away, pointsFor: pMap.get(pair.away.rosterId) || 0 },
+                        status: (pMap.get(pair.home.rosterId) || 0) > 0 ? 'final' : 'scheduled'
+                    }));
+                } else {
+                    pairs = customPairs.map(pair => ({ ...pair, status: 'scheduled' }));
+                }
+            } catch (err) {
+                 console.warn('Erro redraft fallback, usando standard', err);
+            }
+         } 
+         else if (leagueType === 'dynasty' && rule.startsWith('dynasty-week')) {
+            try {
+                 if (teams.length === 10) {
+                     const customPairs = pairDynasty(teams, week as 10 | 11 | 12 | 13);
                      const realMatchups = await fetchMatchups(leagueId, week);
+                     
                      if (realMatchups && realMatchups.length > 0) {
                         const pMap = new Map<number, number>();
                         realMatchups.forEach(m => pMap.set(m.roster_id, m.points));
-                        pairs.forEach(pair => {
-                            if (pMap.has(pair.home.rosterId)) pair.home.pointsFor = pMap.get(pair.home.rosterId) || 0;
-                            if (pMap.has(pair.away.rosterId)) pair.away.pointsFor = pMap.get(pair.away.rosterId) || 0;
-                        });
+                        
+                        pairs = customPairs.map(pair => ({
+                            home: { ...pair.home, pointsFor: pMap.get(pair.home.rosterId) || 0 },
+                            away: { ...pair.away, pointsFor: pMap.get(pair.away.rosterId) || 0 },
+                            status: (pMap.get(pair.home.rosterId) || 0) > 0 ? 'final' : 'scheduled'
+                        }));
+                     } else {
+                        pairs = customPairs.map(pair => ({ ...pair, status: 'scheduled' }));
                      }
-                 } catch (err) {
-                     console.warn('Erro redraft fallback', err);
-                     pairs.forEach(pair => { pair.home.pointsFor = 0; pair.away.pointsFor = 0; });
                  }
+            } catch (e) {
+                console.warn("Dynasty pairing error, usando standard", e);
             }
-         } else {
-             // Fallback Dynasty Regular
-              if (teams.length !== 10) {
-                 // throw new Error? Deixa passar se for teste
-              }
-              // ... lógica dynasty regular
-               try {
-                const realMatchups = await fetchMatchups(leagueId, week);
-                if (realMatchups && realMatchups.length > 0) {
-                   const matchupMap = new Map<number, SleeperMatchup[]>();
-                   realMatchups.forEach(m => {
-                     if (!matchupMap.has(m.matchup_id)) matchupMap.set(m.matchup_id, []);
-                     matchupMap.get(m.matchup_id)?.push(m);
-                   });
-                   pairs = Array.from(matchupMap.values()).map(match => {
-                     const m1 = match[0];
-                     const m2 = match[1];
-                     const t1 = teams.find(t => t.rosterId === m1.roster_id);
-                     const t2 = teams.find(t => t.rosterId === m2.roster_id);
-                     if (!t1 || !t2) return null;
-                     const home = { ...t1, pointsFor: m1.points };
-                     const away = { ...t2, pointsFor: m2.points };
-                     let s: 'scheduled' | 'in_progress' | 'final' = 'scheduled';
-                     if (home.pointsFor > 0 && away.pointsFor > 0) s = 'final';
-                     return { home, away, status: s };
-                   }).filter(p => p !== null);
-                } else {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    if (teams.length === 10) pairs = pairDynasty(teams, week as any);
-                }
-              } catch (_e) {
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  if (teams.length === 10) pairs = pairDynasty(teams, week as any);
-              }
+         }
+
+         // 2. Fallback Final: Se customizado falhou ou é regra standard, busca do Sleeper
+         // Isso garante "exibir os dados que existem" mesmo se a regra custom falhar
+         if (!pairs || pairs.length === 0) {
+             pairs = await fetchStandardMatchups();
          }
       }
 

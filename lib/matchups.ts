@@ -109,25 +109,16 @@ export function pairDynasty(teams: Team[], week: 10 | 11 | 12 | 13): Pair[] {
  */
 // Função auxiliar para validar se uma semana é válida para uma liga
 export function isValidWeekForLeague(leagueType: 'redraft' | 'dynasty', week: number): boolean {
-  if (leagueType === 'redraft') {
-    // Redraft: Week 14 (Regular finale) + 15-17 (Playoffs)
-    return [14, 15, 16, 17].includes(week);
-  }
-  
-  if (leagueType === 'dynasty') {
-    // 10-13: Regular Dynasty Matchups
-    // 14-17: Playoffs Dynasty
-    return [10, 11, 12, 13, 14, 15, 16, 17].includes(week);
-  }
-  
-  return false;
+  // Allow all standard weeks (1-17) for history purposes
+  return week >= 1 && week <= 17;
 }
 
 // Função auxiliar para determinar o tipo de regra baseado na liga e semana
 export function getMatchupRule(leagueType: 'redraft' | 'dynasty', week: number): string {
   if (leagueType === 'redraft') {
-    if (week === 14) return 'redraft-topx';
+    if (week === 14) return 'redraft-topx'; // Specific functionality for week 14
     if (week >= 15) return 'playoffs';
+    return 'standard'; // Weeks 1-13
   }
   
   if (leagueType === 'dynasty') {
@@ -137,7 +128,8 @@ export function getMatchupRule(leagueType: 'redraft' | 'dynasty', week: number):
     if (week >= 14) {
       return 'dynasty-playoffs';
     }
+    return 'standard'; // Weeks 1-9
   }
   
-  throw new Error(`Combinação inválida: ${leagueType} semana ${week}`);
+  return 'standard';
 }

@@ -1,8 +1,8 @@
-// Tipos para a API do Sleeper
 export interface SleeperLeague {
   league_id: string;
   name: string;
   season: string;
+  previous_league_id?: string;
   settings: {
     week?: number;
     playoff_week_start?: number;
@@ -662,4 +662,54 @@ export async function fetchTradedPicks(draftId: string, useCache = true): Promis
     console.error(`Erro ao buscar traded picks do draft ${draftId}:`, error);
     return [];
   }
+}
+
+// Busca recursivamente o histórico de ligas anteriores
+export async function fetchLeagueHistory(currentLeagueId: string): Promise<Record<string, string>> {
+  const history: Record<string, string> = {};
+  let nextLeagueId: string | undefined = currentLeagueId;
+  
+  const baseUrl = 'https://api.sleeper.app/v1';
+
+  console.log(`[HISTORY] Iniciando busca recursiva de histórico partindo de: ${currentLeagueId}`);
+
+  // Limite de segurança para recursão
+  let attempts = 0;
+  const MAX_ATTEMPTS = 15; // Aumentado para cobrir mais anos se necessário
+
+  while (nextLeagueId && attempts < MAX_ATTEMPTS) {
+    try {
+      // Usar cache longo para histórico de ligas, pois IDs antigos não mudam
+      const leagueData: SleeperLeague = await fetchJSON<SleeperLeague>(
+        `${baseUrl}/league/${nextLeagueId}`, 
+        {
+          revalidate: 86400, // 24 horas de cache para estrutura da liga
+          cacheKey: `league-basic-${nextLeagueId}`
+        }
+      );
+
+      if (leagueData) {
+        history[leagueData.season] = leagueData.league_id;
+        
+        // Preparar para próxima iteração
+        nextLeagueId = leagueData.previous_league_id;
+        
+        // Se a próxima já estiver no histórico (ciclo), parar
+        if (nextLeagueId && Object.values(history).includes(nextLeagueId)) {
+          console.warn(`[HISTORY] Ciclo detectado no histórico de ligas. Parando.`);
+          break;
+        }
+      } else {
+        console.warn(`[HISTORY] Liga ${nextLeagueId} não retornou dados.`);
+        break;
+      }
+    } catch (error) {
+      console.error(`[HISTORY] Erro ao buscar liga ${nextLeagueId}:`, error);
+      break;
+    }
+    
+    attempts++;
+  }
+
+  return history;
 }

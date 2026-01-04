@@ -1,5 +1,5 @@
 // SleeperDraft removido dos imports pois não é usado explicitamente aqui (inferido)
-import { fetchDrafts, fetchTradedPicks, fetchLeagueData, mapSleeperDataToTeams, SleeperDraft, fetchWinnersBracket } from '@/lib/sleeper';
+import { fetchDrafts, fetchTradedPicks, fetchLeagueData, mapSleeperDataToTeams, fetchWinnersBracket } from '@/lib/sleeper';
 import { DraftOrderList } from '@/components/DraftOrderList';
 import Link from 'next/link';
 

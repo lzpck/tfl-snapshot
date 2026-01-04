@@ -15,37 +15,37 @@ body {
   overflow-x: hidden;
 }
 
-/* Tema Light (padrão) */
+/* Tema Light (Baseado em Slate suave) */
 :root {
-  --bg: #ffffff;
-  --surface: #f8fafc;
-  --surface-hover: #f1f5f9;
-  --text: #1e293b;
-  --text-muted: #64748b;
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
-  --border: #e2e8f0;
-  --border-muted: #f1f5f9;
+  --bg: #f8fafc; /* slate-50 */
+  --surface: #ffffff; /* white */
+  --surface-hover: #f1f5f9; /* slate-100 */
+  --text: #0f172a; /* slate-900 */
+  --text-muted: #64748b; /* slate-500 */
+  --accent: #3b82f6; /* blue-500 */
+  --accent-hover: #2563eb; /* blue-600 */
+  --border: #e2e8f0; /* slate-200 */
+  --border-muted: #f1f5f9; /* slate-100 */
 }
 
-/* Tema Dark (inspirado no Sleeper) */
+/* Tema Dark (Premium Slate - Baseado no Histórico) */
 .dark {
-  --bg: #0B0F14;
-  --surface: #141A22;
-  --surface-hover: #1e2832;
-  --text: #E6EDF3;
-  --text-muted: #8b949e;
-  --accent: #8B9FFF;
-  --accent-hover: #a5b4ff;
-  --border: #30363d;
-  --border-muted: #21262d;
+  --bg: #020617; /* slate-950 */
+  --surface: #0f172a; /* slate-900 */
+  --surface-hover: #1e293b; /* slate-800 */
+  --text: #f1f5f9; /* slate-100 */
+  --text-muted: #94a3b8; /* slate-400 */
+  --accent: #3b82f6; /* blue-500 (Base brand color) */
+  --accent-hover: #60a5fa; /* blue-400 */
+  --border: #1e293b; /* slate-800 */
+  --border-muted: #0f172a; /* slate-900 */
 }
 
 /* Aplicar cores ao body */
 body {
   background-color: var(--bg);
   color: var(--text);
-  transition: background-color 0.3s ease, color 0.3s ease;
+  /* Remover transição de cores global para evitar flickers e performance issues */
 }
 
 /* Estilos para o widget do Twitter */
@@ -78,20 +78,21 @@ body {
 iframe[id^="twitter-widget"] {
   width: 100% !important;
   max-width: 100% !important;
-  border-radius: 0.375rem;
+  border-radius: 0.375rem; /* rounded-md */
 }
 
 /* Scrollbar customizada para dark mode */
 .dark ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 
 .dark ::-webkit-scrollbar-track {
-  background: var(--surface);
+  background: var(--bg);
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: var(--surface-hover);
   border-radius: 4px;
 }
 

@@ -167,16 +167,16 @@ export function DraftOrderList({ draft, tradedPicks, teams, winnersBracket }: Dr
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden max-w-4xl mx-auto">
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white text-center">
+    <div className="bg-surface rounded-xl shadow-sm overflow-hidden max-w-4xl mx-auto border border-border">
+      <div className="p-4 border-b border-border bg-surface-hover/50">
+        <h2 className="text-xl font-bold text-text text-center">
             {draft.season} Draft Order (Round 1)
         </h2>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
-          <thead className="bg-gray-100 dark:bg-gray-900 text-xs uppercase text-gray-500 font-bold border-b border-gray-200 dark:border-gray-700">
+          <thead className="bg-surface-hover text-xs uppercase text-text-muted font-bold border-b border-border">
             <tr>
               <th className="px-4 py-3 text-center w-16">Pick</th>
               <th className="px-4 py-3">Team</th>
@@ -185,7 +185,7 @@ export function DraftOrderList({ draft, tradedPicks, teams, winnersBracket }: Dr
                <th className="px-4 py-3 text-center hidden sm:table-cell">MaxPF</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+          <tbody className="divide-y divide-border">
             {sortedSlots.map((originalTeam, idx) => {
                const pickNumber = idx + 1;
                const currentOwner = getRound1Owner(originalTeam.rosterId);
@@ -194,18 +194,18 @@ export function DraftOrderList({ draft, tradedPicks, teams, winnersBracket }: Dr
                if (!currentOwner) return null; 
 
                return (
-                 <tr key={originalTeam.rosterId} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                   <td className="px-4 py-3 text-center font-bold text-gray-500">
+                 <tr key={originalTeam.rosterId} className="hover:bg-surface-hover transition-colors">
+                   <td className="px-4 py-3 text-center font-bold text-text-muted">
                       1.{pickNumber.toString().padStart(2, '0')}
                    </td>
                    <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                          <div className="w-10 h-10 relative flex-shrink-0">
-                            <div className={`w-10 h-10 rounded-full overflow-hidden relative border-2 ${isTraded ? 'border-amber-400' : 'border-gray-200 dark:border-gray-700'}`}>
+                            <div className={`w-10 h-10 rounded-full overflow-hidden relative border-2 ${isTraded ? 'border-amber-500' : 'border-border'}`}>
                                 {currentOwner.avatarUrl ? (
                                     <Image src={currentOwner.avatarUrl} alt={currentOwner.displayName} fill className="object-cover" />
                                 ) : (
-                                    <div className="w-full h-full bg-slate-200 flex items-center justify-center font-bold text-slate-500 text-xs">
+                                    <div className="w-full h-full bg-surface-hover flex items-center justify-center font-bold text-text-muted text-xs">
                                         {currentOwner.displayName.substring(0,2)}
                                     </div>
                                 )}
@@ -213,11 +213,11 @@ export function DraftOrderList({ draft, tradedPicks, teams, winnersBracket }: Dr
                          </div>
                          
                          <div className="flex flex-col">
-                            <span className="font-semibold text-gray-900 dark:text-white text-base">
+                            <span className="font-semibold text-text text-base">
                                {currentOwner.displayName}
                             </span>
                             {isTraded && (
-                                <span className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
+                                <span className="text-xs text-amber-500 font-medium flex items-center gap-1">
                                    via {originalTeam.displayName}
                                 </span>
                             )}
@@ -226,16 +226,16 @@ export function DraftOrderList({ draft, tradedPicks, teams, winnersBracket }: Dr
                    </td>
                    
                    <td className="px-4 py-3 text-center">
-                      <div className="inline-flex items-center justify-center px-2.5 py-1 rounded-md bg-gray-100 dark:bg-gray-700 font-mono font-medium text-gray-700 dark:text-gray-300">
+                      <div className="inline-flex items-center justify-center px-2.5 py-1 rounded-md bg-surface-hover font-mono font-medium text-text">
                          {originalTeam.wins}-{originalTeam.losses}{originalTeam.ties > 0 ? `-${originalTeam.ties}` : ''}
                       </div>
                    </td>
                    
-                   <td className="px-4 py-3 text-center text-gray-500 hidden sm:table-cell font-mono text-xs">
+                   <td className="px-4 py-3 text-center text-text-muted hidden sm:table-cell font-mono text-xs">
                       {originalTeam.pointsFor.toFixed(2)}
                    </td>
 
-                   <td className="px-4 py-3 text-center text-gray-500 hidden sm:table-cell font-mono text-xs">
+                   <td className="px-4 py-3 text-center text-text-muted hidden sm:table-cell font-mono text-xs">
                        {originalTeam.ppts?.toFixed(2) || '-'}
                    </td>
                  </tr>
@@ -245,7 +245,7 @@ export function DraftOrderList({ draft, tradedPicks, teams, winnersBracket }: Dr
         </table>
       </div>
       
-      <div className="bg-gray-50 dark:bg-gray-900 px-4 py-3 text-xs text-gray-500 text-center border-t border-gray-200 dark:border-gray-700">
+      <div className="bg-surface-hover/30 px-4 py-3 text-xs text-text-muted text-center border-t border-border">
          * Ordem: Recorde (Não Playoff) &rarr; Eliminados QF &rarr; Eliminados Semi &rarr; Finais. &quot;lzpck&quot; é o 1.01 devido a ter vencido o confronto direto contra o homemfutebol.
       </div>
     </div>

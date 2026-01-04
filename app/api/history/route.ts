@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchLeagueData, mapSleeperDataToTeams } from '@/lib/sleeper';
-import { applyRankings } from '@/lib/sort';
+import { fetchLeagueData, mapSleeperDataToTeams, fetchLeagueHistory, fetchMatchups, SleeperMatchup } from '@/lib/sleeper';
+import { applyRankings, applySleeperDefaultRankings } from '@/lib/sort';
 import { fetchPlayoffFinal } from '@/lib/playoffs';
 
 // Forçar rota dinâmica
@@ -1016,6 +1016,7 @@ interface SeasonData {
   champion: {
     rosterId: number;
     displayName: string;
+    avatar?: string;
     wins: number;
     losses: number;
     ties: number;
@@ -1025,6 +1026,7 @@ interface SeasonData {
   runnerUp: {
     rosterId: number;
     displayName: string;
+    avatar?: string;
     wins: number;
     losses: number;
     ties: number;
@@ -1034,6 +1036,8 @@ interface SeasonData {
   standings: Array<{
     rank: number;
     displayName: string;
+    avatar?: string;
+    ownerId?: string;
     wins: number;
     losses: number;
     ties: number;
@@ -1046,17 +1050,143 @@ interface SeasonData {
   note?: string; // Observação adicional para dados históricos
 }
 
+interface MatchUser {
+  userId: string;
+  displayName: string;
+  avatar?: string;
+  score: number;
+}
+
+interface HistoricalMatch {
+  season: string;
+  week: number;
+  userA: MatchUser;
+  userB: MatchUser;
+  winnerUserId: string | null;
+}
+
 // Interface para resposta da API
 interface HistoryResponse {
   leagueType: string;
   seasons: SeasonData[];
+  matches: HistoricalMatch[];
+}
+
+// Função para buscar partidas de uma temporada
+async function fetchSeasonMatches(
+  leagueId: string,
+  year: string
+): Promise<HistoricalMatch[]> {
+  try {
+    // Buscar dados da liga para mapeamento de usuários
+    const { league, users, rosters } = await fetchLeagueData(leagueId, true);
+    
+    if (!league || !users || !rosters) {
+      return [];
+    }
+    
+    // Mapear Roster ID -> User Data
+    const rosterMap = new Map<number, { userId: string; displayName: string; avatarUrl?: string }>();
+    const teams = mapSleeperDataToTeams(users, rosters);
+    
+    teams.forEach(t => {
+      rosterMap.set(t.rosterId, {
+        userId: t.ownerId,
+        displayName: t.displayName,
+        avatarUrl: t.avatarUrl
+      });
+    });
+    
+    // Determinar semanas da temporada regular
+    // Se playoff_week_start não estiver definido, assumimos 15 (padrão antigo comum)
+    const playoffStart = league.settings.playoff_week_start || 15;
+    const regularSeasonWeeks = playoffStart - 1;
+    
+    // Buscar matchups de todas as semanas em paralelo
+    const weeks = Array.from({ length: regularSeasonWeeks }, (_, i) => i + 1);
+    
+    const weeksData = await Promise.all(
+      weeks.map(async (week) => {
+        try {
+          const weeklyMatchups = await fetchMatchups(leagueId, week, true);
+          return { week, weeklyMatchups };
+        } catch (e) {
+          console.error(`Erro ao buscar semana ${week} da liga ${leagueId}:`, e);
+          return { week, weeklyMatchups: [] };
+        }
+      })
+    );
+    
+    const matches: HistoricalMatch[] = [];
+    
+    for (const { week, weeklyMatchups } of weeksData) {
+      if (!weeklyMatchups || weeklyMatchups.length === 0) continue;
+
+      // Agrupar por matchup_id
+      const matchupsById = new Map<number, SleeperMatchup[]>();
+      weeklyMatchups.forEach(m => {
+        if (!matchupsById.has(m.matchup_id)) matchupsById.set(m.matchup_id, []);
+        matchupsById.get(m.matchup_id)?.push(m);
+      });
+      
+      for (const [, sides] of matchupsById) {
+        if (sides.length === 2) {
+          const sideA = sides[0];
+          const sideB = sides[1];
+          
+          const userA = rosterMap.get(sideA.roster_id);
+          const userB = rosterMap.get(sideB.roster_id);
+          
+          // Apenas considerar matchups válidos com usuários mapeados
+          if (userA && userB) {
+            // Determinar vencedor
+            let winnerUserId: string | null = null;
+            // Usar roste_id como identificador temporário se userId for 'unknown' ou similar,
+            // mas aqui queremos o userId real. Se for 'unknown', o H2H pode falhar, mas ok.
+            
+            if (sideA.points > sideB.points) winnerUserId = userA.userId;
+            else if (sideB.points > sideA.points) winnerUserId = userB.userId;
+            
+            matches.push({
+              season: year,
+              week,
+              userA: { 
+                userId: userA.userId, 
+                displayName: userA.displayName, 
+                avatar: userA.avatarUrl,
+                score: sideA.points 
+              },
+              userB: { 
+                userId: userB.userId, 
+                displayName: userB.displayName, 
+                avatar: userB.avatarUrl,
+                score: sideB.points 
+              },
+              winnerUserId
+            });
+          }
+        }
+      }
+    }
+    
+    return matches;
+    
+  } catch (error) {
+    console.error(`Erro ao buscar partidas da temporada ${year}:`, error);
+    return [];
+  }
 }
 
 // Função para buscar dados de uma temporada específica
-async function fetchSeasonData(leagueId: string, year: string): Promise<SeasonData | null> {
+async function fetchSeasonData(
+  leagueId: string, 
+  year: string, 
+  leagueType: string,
+  isCurrentSeason: boolean
+): Promise<SeasonData | null> {
   try {
-    // Buscar dados do Sleeper sem cache para garantir dados atualizados
-    const { league, users, rosters } = await fetchLeagueData(leagueId, false);
+    // Buscar dados do Sleeper (cache mais agressivo para anos anteriores)
+    const { league, users, rosters } = await fetchLeagueData(leagueId, !isCurrentSeason);
     
     // Verificar se os dados são válidos
     if (!league) {
@@ -1084,7 +1214,11 @@ async function fetchSeasonData(leagueId: string, year: string): Promise<SeasonDa
     }
     
     // Aplicar rankings
-    const teams = applyRankings(teamsWithoutRank);
+    // Para o ano atual, mantemos a lógica customizada
+    // Para anos anteriores (2022+), usamos os dados diretos do Sleeper
+    const teams = isCurrentSeason 
+      ? applyRankings(teamsWithoutRank, leagueType as 'redraft' | 'dynasty')
+      : applySleeperDefaultRankings(teamsWithoutRank);
     
     // Ordenar por ranking
     const sortedTeams = teams.sort((a, b) => a.rank - b.rank);
@@ -1108,7 +1242,8 @@ async function fetchSeasonData(leagueId: string, year: string): Promise<SeasonDa
         losses: championTeam.losses,
         ties: championTeam.ties,
         pointsFor: championTeam.pointsFor,
-        seed: championTeam.rank
+        seed: championTeam.rank,
+        avatar: championTeam.avatarUrl
       } : null;
       
       runnerUp = runnerUpTeam ? {
@@ -1118,7 +1253,8 @@ async function fetchSeasonData(leagueId: string, year: string): Promise<SeasonDa
         losses: runnerUpTeam.losses,
         ties: runnerUpTeam.ties,
         pointsFor: runnerUpTeam.pointsFor,
-        seed: runnerUpTeam.rank
+        seed: runnerUpTeam.rank,
+        avatar: runnerUpTeam.avatarUrl
       } : null;
       
       bracket = {
@@ -1135,7 +1271,8 @@ async function fetchSeasonData(leagueId: string, year: string): Promise<SeasonDa
         losses: sortedTeams[0].losses,
         ties: sortedTeams[0].ties,
         pointsFor: sortedTeams[0].pointsFor,
-        seed: sortedTeams[0].rank
+        seed: sortedTeams[0].rank,
+        avatar: sortedTeams[0].avatarUrl
       } : null;
       
       runnerUp = sortedTeams[1] ? {
@@ -1145,7 +1282,8 @@ async function fetchSeasonData(leagueId: string, year: string): Promise<SeasonDa
         losses: sortedTeams[1].losses,
         ties: sortedTeams[1].ties,
         pointsFor: sortedTeams[1].pointsFor,
-        seed: sortedTeams[1].rank
+        seed: sortedTeams[1].rank,
+        avatar: sortedTeams[1].avatarUrl
       } : null;
     }
     
@@ -1153,6 +1291,8 @@ async function fetchSeasonData(leagueId: string, year: string): Promise<SeasonDa
     const standings = sortedTeams.map(team => ({
       rank: team.rank,
       displayName: team.displayName,
+      avatar: team.avatarUrl,
+      ownerId: team.ownerId, 
       wins: team.wins,
       losses: team.losses,
       ties: team.ties,
@@ -1187,42 +1327,58 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Definir IDs das ligas baseado no tipo
-    let leagueIds: { [year: string]: string } = {};
+    // Determinar o ID da liga atual
+    let currentLeagueId = '';
     
     if (leagueType === 'redraft') {
-      leagueIds = {
-        '2022': process.env.LEAGUE_ID_REDRAFT_2022 || '',
-        '2023': process.env.LEAGUE_ID_REDRAFT_2023 || '',
-        '2024': process.env.LEAGUE_ID_REDRAFT_2024 || ''
-      };
+      // Prioridade: Variável específica > Variável genérica > Ligas legadas
+      currentLeagueId = process.env.LEAGUE_ID_REDRAFT || process.env.LEAGUE_ID || process.env.LEAGUE_ID_REDRAFT_2024 || '';
     } else if (leagueType === 'dynasty') {
-      leagueIds = {
-        '2024': process.env.LEAGUE_ID_DYNASTY_2024 || '',
-        '2025': process.env.LEAGUE_ID_DYNASTY_2025 || ''
-      };
+      currentLeagueId = process.env.LEAGUE_ID_DYNASTY || process.env.LEAGUE_ID_DYNASTY_2024 || '';
     }
     
-    // Filtrar apenas IDs válidos (não vazios)
-    const validLeagueIds = Object.entries(leagueIds)
-      .filter(([, id]) => id.trim() !== '')
-      .reduce((acc, [year, id]) => ({ ...acc, [year]: id }), {});
-    
-    if (Object.keys(validLeagueIds).length === 0) {
+    if (!currentLeagueId) {
       return NextResponse.json(
         { error: `Nenhum ID de liga configurado para ${leagueType}` },
         { status: 404 }
       );
     }
+
+    console.log(`[API] Buscando histórico para ${leagueType} a partir de ${currentLeagueId}`);
     
+    // Buscar histórico de ligas recursivamente
+    const historyMap = await fetchLeagueHistory(currentLeagueId);
+    
+    // Filtrar apenas anos relevantes para o Sleeper (>= 2022)
+    const validYears = Object.keys(historyMap).filter(year => parseInt(year) >= 2022);
+    
+    console.log(`[API] Anos encontrados no Sleeper: ${validYears.join(', ')}`);
+
     // Buscar dados de todas as temporadas em paralelo
-    const seasonPromises = Object.entries(validLeagueIds).map(([year, leagueId]) =>
-      fetchSeasonData(leagueId as string, year)
-    );
+    const seasonPromises = validYears.map(year => {
+      const leagueId = historyMap[year];
+      // A liga atual é a que iniciou a busca (currentLeagueId)
+      // OU a que tem o ano mais recente (caso currentLeagueId seja de um ano anterior, o que não deve ocorrer no fluxo normal)
+      const isCurrentSeason = leagueId === currentLeagueId;
+      
+      return fetchSeasonData(leagueId, year, leagueType, isCurrentSeason);
+    });
     
-    const seasonResults = await Promise.all(seasonPromises);
+    // Buscar partidas históricas em paralelo
+    const matchesPromises = validYears.map(year => {
+      const leagueId = historyMap[year];
+      return fetchSeasonMatches(leagueId, year);
+    });
+
+    const [seasonResults, matchesResults] = await Promise.all([
+      Promise.all(seasonPromises),
+      Promise.all(matchesPromises)
+    ]);
     
-    // Filtrar resultados válidos
+    // Flatten arrays de partidas
+    const allMatches = matchesResults.flat();
+    
+    // Filtrar resultados válidos de temporada
     const sleeperSeasons = seasonResults
       .filter((season): season is SeasonData => season !== null);
     
@@ -1235,7 +1391,8 @@ export async function GET(request: NextRequest) {
 
     const response: HistoryResponse = {
       leagueType,
-      seasons: allSeasons
+      seasons: allSeasons,
+      matches: allMatches
     };
     
     return NextResponse.json(response);
