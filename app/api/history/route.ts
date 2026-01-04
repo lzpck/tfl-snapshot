@@ -1349,8 +1349,12 @@ export async function GET(request: NextRequest) {
     // Buscar histórico de ligas recursivamente
     const historyMap = await fetchLeagueHistory(currentLeagueId);
     
-    // Filtrar apenas anos relevantes para o Sleeper (>= 2022)
-    const validYears = Object.keys(historyMap).filter(year => parseInt(year) >= 2022);
+    // Filtrar apenas anos relevantes para o Sleeper (>= 2022) e excluir a temporada atual
+    const validYears = Object.keys(historyMap).filter(year => {
+      // Ignorar o ano atual (seja pela comparação de ID ou ano)
+      if (historyMap[year] === currentLeagueId) return false;
+      return parseInt(year) >= 2022;
+    });
     
     console.log(`[API] Anos encontrados no Sleeper: ${validYears.join(', ')}`);
 

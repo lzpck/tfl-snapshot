@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import Image from 'next/image';
+
 import { getLeagueConfig } from '../lib/env-validation';
 import { ChevronRightIcon, TrophyIcon, ChartBarIcon, UserGroupIcon, ListBulletIcon } from '@heroicons/react/24/outline';
 
@@ -28,13 +28,12 @@ export default function Home() {
     <div className="flex flex-col items-center justify-center min-h-[80vh]">
       <div className="text-center mb-16 space-y-4 flex flex-col items-center">
         <div className="relative w-64 h-64 md:w-80 md:h-80 -mb-20">
-           <Image
+          <img
              src="/tfl-logo.png"
              alt="TFL Logo"
              width={500}
              height={500}
              className="object-contain"
-             priority
            />
         </div>
         <h1 className="text-5xl font-extrabold tracking-tight text-text">

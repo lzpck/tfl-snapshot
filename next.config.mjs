@@ -1,4 +1,4 @@
-import withPWA from '@ducanh2912/next-pwa';
+// import withPWA from '@ducanh2912/next-pwa';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -14,8 +14,9 @@ const nextConfig = {
     ],
   },
   experimental: {
-    optimizePackageImports: ['react-icons']
+    optimizePackageImports: ['@heroicons/react']
   },
+
   
   // Expor variáveis de ambiente para o cliente
   env: {
@@ -53,6 +54,7 @@ const nextConfig = {
 };
 
 // Configuração do PWA - Simplificada e compatível com Next.js 14
+/*
 const pwaConfig = {
   dest: 'public',
   disable: process.env.NODE_ENV === 'development',
@@ -65,5 +67,7 @@ const pwaConfig = {
     document: '/offline.html'
   }
 };
+*/
 
-export default withPWA(pwaConfig)(nextConfig);
+// export default withPWA(pwaConfig)(nextConfig);
+export default nextConfig;
