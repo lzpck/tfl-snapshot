@@ -108,13 +108,13 @@ export function pairDynasty(teams: Team[], week: 10 | 11 | 12 | 13): Pair[] {
  * @returns true se a semana é válida para o tipo de liga
  */
 // Função auxiliar para validar se uma semana é válida para uma liga
-export function isValidWeekForLeague(leagueType: 'redraft' | 'dynasty', week: number): boolean {
-  // Allow all standard weeks (1-17) for history purposes
-  return week >= 1 && week <= 17;
+export function isValidWeekForLeague(leagueType: string, week: number): boolean {
+  // Allow all standard weeks (1-18) for history purposes (18 for newer seasons)
+  return week >= 1 && week <= 18;
 }
 
 // Função auxiliar para determinar o tipo de regra baseado na liga e semana
-export function getMatchupRule(leagueType: 'redraft' | 'dynasty', week: number): string {
+export function getMatchupRule(leagueType: string, week: number): string {
   if (leagueType === 'redraft') {
     if (week === 14) return 'redraft-topx'; // Specific functionality for week 14
     if (week >= 15) return 'playoffs';
@@ -131,5 +131,7 @@ export function getMatchupRule(leagueType: 'redraft' | 'dynasty', week: number):
     return 'standard'; // Weeks 1-9
   }
   
+  // For historical or unknown leagues, assume standard matchups rules 
+  // unless we want to replicate specific history rules, but usually standard is safer for old data display
   return 'standard';
 }

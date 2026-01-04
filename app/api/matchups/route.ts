@@ -68,18 +68,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Determinar o tipo de liga
-    let leagueType: 'redraft' | 'dynasty';
+    // Determinar o tipo de liga (apenas se for uma das atuais, senão assume genérico)
+    let leagueType: string = 'unknown';
+    
     if (leagueId === LEAGUE_ID_REDRAFT) {
       leagueType = 'redraft';
     } else if (leagueId === LEAGUE_ID_DYNASTY) {
       leagueType = 'dynasty';
-    } else {
-      return NextResponse.json(
-        { error: 'Liga não reconhecida. Use uma das ligas configuradas.' },
-        { status: 400 }
-      );
     }
+    // Se não for nenhuma das conhecidas, permitimos prosseguir.
+    // O fetchLeagueData cuidará de verificar se o ID existe na Sleeper API.
 
     // Validar se a semana é válida para o tipo de liga
     if (!isValidWeekForLeague(leagueType, week)) {

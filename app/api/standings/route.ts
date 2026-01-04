@@ -38,18 +38,8 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Verificar se é um dos IDs válidos das env vars
-    const validLeagueIds = [
-      process.env.LEAGUE_ID_REDRAFT,
-      process.env.LEAGUE_ID_DYNASTY
-    ].filter(Boolean);
-    
-    if (!validLeagueIds.includes(leagueId)) {
-      return NextResponse.json(
-        { error: 'ID da liga não é válido' },
-        { status: 400 }
-      );
-    }
+    // Não restringimos a apenas IDs configurados para permitir visualização de leagues anteriores (histórico)
+    // O fetchLeagueData abaixo irá validar se a liga existe na API do Sleeper.
     
     // Buscar dados do Sleeper e estado atual da NFL com cache dinâmico
     // O cache é automaticamente aplicado baseado na temporada

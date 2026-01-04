@@ -106,7 +106,10 @@ export default function MatchupsPage() {
             
             if (!response.ok) {
                 // If 404 or empty, we handle it in UI, but API might throw error
-                // Let's assume API returns empty pairs if no matchups
+                // In case of error, stop processing to avoid crash
+                console.warn("API Error:", response.statusText);
+                setMatchupData(null);
+                return;
             }
             
             const data: MatchupView = await response.json();
