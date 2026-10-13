@@ -69,6 +69,7 @@ export interface Team {
 
 // Interface para o estado atual da NFL
 export interface SleeperNFLState {
+  season?: string;
   week: number;
   display_week: number;
   season_type: string;

@@ -27,7 +27,7 @@ const ALIASES: Record<string, string> = {
 // 2019: coverdofagner e coverdolebron coexistem, mas são a mesma pessoa; o cadastro de coverdolebron é o suspeito.
 const EXCLUDED = new Set(['2019:coverdolebron']);
 
-const keyOf = (name: string) => {
+export const keyOf = (name: string) => {
   const k = name.trim().toLowerCase();
   return ALIASES[k] ?? k;
 };
@@ -82,6 +82,7 @@ export function buildAllTime(seasons: SeasonData[]): AllTimeRow[] {
     .sort((a, b) => winPct(b) - winPct(a) || b.titles - a.titles || avgPf(b) - avgPf(a));
 }
 
-export const games = (r: AllTimeRow) => r.wins + r.losses + r.ties;
-export const winPct = (r: AllTimeRow) => (games(r) ? (r.wins + r.ties / 2) / games(r) : 0);
+type WinLoss = Pick<AllTimeRow, 'wins' | 'losses' | 'ties'>;
+export const games = (r: WinLoss) => r.wins + r.losses + r.ties;
+export const winPct = (r: WinLoss) => (games(r) ? (r.wins + r.ties / 2) / games(r) : 0);
 export const avgPf = (r: AllTimeRow) => (r.statSeasons ? r.pointsFor / r.statSeasons : 0);

@@ -71,4 +71,6 @@ export interface HistoryData {
   seasons: SeasonData[];
   matches: HistoricalMatch[];
   allTime: AllTimeRow[];
+  currentSeason?: SeasonData | null;
+  extraMatches?: HistoricalMatch[];
 }

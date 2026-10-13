@@ -1,8 +1,9 @@
+import Link from 'next/link';
 import { AllTimeRow } from '../types';
-import { avgPf, games, winPct } from '@/lib/allTime';
+import { avgPf, games, keyOf, winPct } from '@/lib/allTime';
 import { TrophyIcon } from '@heroicons/react/24/solid';
 
-export function AllTimeTable({ rows }: { rows: AllTimeRow[] }) {
+export function AllTimeTable({ rows, leagueType }: { rows: AllTimeRow[]; leagueType: string }) {
   if (rows.length === 0) return <div className="p-8 text-center text-slate-500">Nenhum dado disponível</div>;
 
   return (
@@ -26,7 +27,7 @@ export function AllTimeTable({ rows }: { rows: AllTimeRow[] }) {
                 <td className="px-4 py-4 text-center text-slate-500 font-medium">{i + 1}</td>
                 <td className="px-4 py-4">
                   <div className="flex flex-col">
-                    <span className="text-slate-200 font-medium">{r.displayName}</span>
+                    <Link href={`/history/${leagueType}/${encodeURIComponent(keyOf(r.displayName))}`} className="text-slate-200 font-medium hover:text-white hover:underline">{r.displayName}</Link>
                     <span className="text-xs text-slate-500">
                       {r.seasons} {r.seasons === 1 ? 'temporada' : 'temporadas'} · {Math.round(r.pointsFor).toLocaleString('pt-BR')} PF total
                     </span>

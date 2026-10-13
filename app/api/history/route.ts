@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchLeagueData, mapSleeperDataToTeams, fetchLeagueHistory, fetchMatchups, fetchWinnersBracket, SleeperMatchup } from '@/lib/sleeper';
+import { fetchLeagueData, mapSleeperDataToTeams, fetchLeagueHistory, fetchMatchups, fetchWinnersBracket, fetchNFLState, SleeperMatchup, SleeperBracketMatch } from '@/lib/sleeper';
 import { applyRankings, applySleeperDefaultRankings } from '@/lib/sort';
 import { fetchPlayoffFinal } from '@/lib/playoffs';
 import { buildAllTime } from '@/lib/allTime';
@@ -1074,12 +1074,16 @@ interface HistoryResponse {
   seasons: SeasonData[];
   matches: HistoricalMatch[];
   allTime: AllTimeRow[];
+  currentSeason: SeasonData | null; // fora de seasons/allTime/matches: usada só na página do manager
+  extraMatches: HistoricalMatch[]; // temporada regular da atual + chave do título de todas (2022+)
 }
 
 // Função para buscar partidas de uma temporada
+// lastWeek: só semanas até ela (temporada em andamento: a semana atual ainda tem placar parcial)
 async function fetchSeasonMatches(
   leagueId: string,
-  year: string
+  year: string,
+  lastWeek?: number
 ): Promise<HistoricalMatch[]> {
   try {
     // Buscar dados da liga para mapeamento de usuários
@@ -1104,7 +1108,7 @@ async function fetchSeasonMatches(
     // Determinar semanas da temporada regular
     // Se playoff_week_start não estiver definido, assumimos 15 (padrão antigo comum)
     const playoffStart = league.settings.playoff_week_start || 15;
-    const regularSeasonWeeks = playoffStart - 1;
+    const regularSeasonWeeks = Math.min(playoffStart - 1, lastWeek ?? Infinity);
     
     // Buscar matchups de todas as semanas em paralelo
     const weeks = Array.from({ length: regularSeasonWeeks }, (_, i) => i + 1);
@@ -1141,8 +1145,8 @@ async function fetchSeasonMatches(
           const userA = rosterMap.get(sideA.roster_id);
           const userB = rosterMap.get(sideB.roster_id);
           
-          // Apenas considerar matchups válidos com usuários mapeados
-          if (userA && userB) {
+          // Apenas considerar matchups válidos com usuários mapeados; 0x0 é semana ainda não jogada
+          if (userA && userB && (sideA.points || sideB.points)) {
             // Determinar vencedor
             let winnerUserId: string | null = null;
             // Usar roste_id como identificador temporário se userId for 'unknown' ou similar,
@@ -1177,6 +1181,58 @@ async function fetchSeasonMatches(
     
   } catch (error) {
     console.error(`Erro ao buscar partidas da temporada ${year}:`, error);
+    return [];
+  }
+}
+
+// O Sleeper não marca `p` nos jogos de perdedores das rodadas iniciais (e `t*_from` só vem na final),
+// então a chave do título é reconstruída da final para trás: a partida conta se o vencedor
+// joga uma partida da chave do título na rodada seguinte.
+function buildTitleBracket(bracketMatches: SleeperBracketMatch[]) {
+  const final = bracketMatches.find(m => m.p === 1);
+  const titleBracket = final ? [final] : [];
+  for (let r = (final?.r ?? 1) - 1; r >= 1; r--) {
+    const advancing = new Set(titleBracket.filter(m => m.r === r + 1).flatMap(m => [m.t1, m.t2]));
+    titleBracket.push(...bracketMatches.filter(m => m.r === r && m.w != null && advancing.has(m.w)));
+  }
+  return { final, titleBracket };
+}
+
+// Jogos já decididos da chave do título, com placar, para o H2H. Jogos de colocação ficam de fora.
+// Assume rodada r = semana playoff_week_start + r - 1 (rodadas de uma semana só).
+async function fetchPlayoffMatches(leagueId: string, year: string): Promise<HistoricalMatch[]> {
+  try {
+    const [{ league, users, rosters }, bracket] = await Promise.all([
+      fetchLeagueData(leagueId, true),
+      fetchWinnersBracket(leagueId),
+    ]);
+    const playoffStart = league?.settings.playoff_week_start;
+    if (!league || !users || !rosters || !playoffStart) return [];
+
+    const byRoster = new Map(mapSleeperDataToTeams(users, rosters).map(t => [t.rosterId, t]));
+    const played = buildTitleBracket(bracket).titleBracket.filter(m => m.t1 != null && m.t2 != null && m.w != null);
+    const rounds = [...new Set(played.map(m => m.r))];
+    const weeks = new Map(await Promise.all(
+      rounds.map(async r => [r, await fetchMatchups(leagueId, playoffStart + r - 1, true)] as const)
+    ));
+
+    const matches: HistoricalMatch[] = [];
+    for (const m of played) {
+      const points = new Map(weeks.get(m.r)?.map(x => [x.roster_id, x.points]));
+      const a = byRoster.get(m.t1!);
+      const b = byRoster.get(m.t2!);
+      if (!a || !b || !points.has(m.t1!) || !points.has(m.t2!)) continue;
+      matches.push({
+        season: year,
+        week: playoffStart + m.r - 1,
+        userA: { userId: a.ownerId, displayName: a.displayName, avatar: a.avatarUrl, score: points.get(m.t1!)! },
+        userB: { userId: b.ownerId, displayName: b.displayName, avatar: b.avatarUrl, score: points.get(m.t2!)! },
+        winnerUserId: m.w === m.t1 ? a.ownerId : b.ownerId,
+      });
+    }
+    return matches;
+  } catch (error) {
+    console.error(`Erro ao buscar playoffs da temporada ${year}:`, error);
     return [];
   }
 }
@@ -1293,15 +1349,9 @@ async function fetchSeasonData(
     
     // Participantes da winner bracket e recorde só na chave do título (jogos de colocação ficam de fora)
     const bracketMatches = await fetchWinnersBracket(leagueId);
-    // O Sleeper não marca `p` nos jogos de perdedores das rodadas iniciais (e `t*_from` só vem na final),
-    // então a chave do título é reconstruída da final para trás: a partida conta se o vencedor
-    // joga uma partida da chave do título na rodada seguinte.
-    const final = bracketMatches.find(m => m.p === 1);
-    const titleBracket = final ? [final] : [];
-    for (let r = (final?.r ?? 1) - 1; r >= 1; r--) {
-      const advancing = new Set(titleBracket.filter(m => m.r === r + 1).flatMap(m => [m.t1, m.t2]));
-      titleBracket.push(...bracketMatches.filter(m => m.r === r && m.w != null && advancing.has(m.w)));
-    }
+    const { final, titleBracket } = buildTitleBracket(bracketMatches);
+    // Temporada em andamento: sem final decidida, ninguém é campeão/vice ainda
+    if (isCurrentSeason && !final?.w) { champion = null; runnerUp = null; }
 
     const playoffRecord = new Map<number, { wins: number; losses: number }>();
     for (const m of titleBracket) {
@@ -1406,9 +1456,18 @@ export async function GET(request: NextRequest) {
       return fetchSeasonMatches(leagueId, year);
     });
 
-    const [seasonResults, matchesResults] = await Promise.all([
+    const currentYear = Object.keys(historyMap).find(year => historyMap[year] === currentLeagueId);
+    const nfl = currentYear ? await fetchNFLState() : null;
+    const lastWeek = nfl && nfl.season === currentYear && nfl.season_type === 'regular' ? nfl.week - 1 : undefined;
+    const extraPromises = [...validYears, ...(currentYear ? [currentYear] : [])]
+      .map(year => fetchPlayoffMatches(historyMap[year], year));
+    if (currentYear) extraPromises.push(fetchSeasonMatches(currentLeagueId, currentYear, lastWeek));
+
+    const [seasonResults, matchesResults, currentSeason, extraResults] = await Promise.all([
       Promise.all(seasonPromises),
-      Promise.all(matchesPromises)
+      Promise.all(matchesPromises),
+      currentYear ? fetchSeasonData(currentLeagueId, currentYear, leagueType, true) : null,
+      Promise.all(extraPromises)
     ]);
     
     // Flatten arrays de partidas
@@ -1429,10 +1488,15 @@ export async function GET(request: NextRequest) {
       leagueType,
       seasons: allSeasons,
       matches: allMatches,
-      allTime: buildAllTime(allSeasons)
+      allTime: buildAllTime(allSeasons),
+      currentSeason,
+      extraMatches: extraResults.flat()
     };
     
-    return NextResponse.json(response);
+    // Mesmo TTL do cache do Sleeper em temporada (60s): a página do manager recarrega tudo a cada clique
+    return NextResponse.json(response, {
+      headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' }
+    });
   } catch (error) {
     console.error('Erro na API de histórico:', error);
     return NextResponse.json(

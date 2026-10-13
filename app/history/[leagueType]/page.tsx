@@ -158,7 +158,7 @@ export default function HistoryPage() {
              )}
 
              {activeTab === 'alltime' && historyData && (
-                <AllTimeTable rows={historyData.allTime || []} />
+                <AllTimeTable rows={historyData.allTime || []} leagueType={leagueType} />
              )}
           </div>
 
