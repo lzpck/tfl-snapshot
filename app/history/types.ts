@@ -33,6 +33,22 @@ export interface SeasonData {
     // Poderíamos ter mais detalhes da match final aqui
   };
   note?: string;
+  // Participantes da winner bracket (só temporadas do Sleeper) com o recorde na chave do título
+  playoffs?: Array<{ displayName: string; wins: number; losses: number }>;
+}
+
+export interface AllTimeRow {
+  displayName: string;
+  seasons: number;
+  statSeasons: number; // temporadas com standings (base do AVG PF)
+  wins: number;
+  losses: number;
+  ties: number;
+  pointsFor: number;
+  playoffAppearances: number;
+  playoffWins: number;
+  playoffLosses: number;
+  titles: number;
 }
 
 export interface MatchUser {
@@ -54,4 +70,5 @@ export interface HistoryData {
   leagueType: string;
   seasons: SeasonData[];
   matches: HistoricalMatch[];
+  allTime: AllTimeRow[];
 }

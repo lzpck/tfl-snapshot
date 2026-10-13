@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchLeagueData, mapSleeperDataToTeams, fetchLeagueHistory, fetchMatchups, SleeperMatchup } from '@/lib/sleeper';
+import { fetchLeagueData, mapSleeperDataToTeams, fetchLeagueHistory, fetchMatchups, fetchWinnersBracket, SleeperMatchup } from '@/lib/sleeper';
 import { applyRankings, applySleeperDefaultRankings } from '@/lib/sort';
 import { fetchPlayoffFinal } from '@/lib/playoffs';
+import { buildAllTime } from '@/lib/allTime';
+import type { AllTimeRow } from '@/app/history/types';
 
 // Forçar rota dinâmica
 export const dynamic = 'force-dynamic';
@@ -1048,6 +1050,7 @@ interface SeasonData {
     finalRound: number;
   };
   note?: string; // Observação adicional para dados históricos
+  playoffs?: Array<{ displayName: string; wins: number; losses: number }>;
 }
 
 interface MatchUser {
@@ -1070,6 +1073,7 @@ interface HistoryResponse {
   leagueType: string;
   seasons: SeasonData[];
   matches: HistoricalMatch[];
+  allTime: AllTimeRow[];
 }
 
 // Função para buscar partidas de uma temporada
@@ -1287,6 +1291,33 @@ async function fetchSeasonData(
       } : null;
     }
     
+    // Participantes da winner bracket e recorde só na chave do título (jogos de colocação ficam de fora)
+    const bracketMatches = await fetchWinnersBracket(leagueId);
+    // O Sleeper não marca `p` nos jogos de perdedores das rodadas iniciais (e `t*_from` só vem na final),
+    // então a chave do título é reconstruída da final para trás: a partida conta se o vencedor
+    // joga uma partida da chave do título na rodada seguinte.
+    const final = bracketMatches.find(m => m.p === 1);
+    const titleBracket = final ? [final] : [];
+    for (let r = (final?.r ?? 1) - 1; r >= 1; r--) {
+      const advancing = new Set(titleBracket.filter(m => m.r === r + 1).flatMap(m => [m.t1, m.t2]));
+      titleBracket.push(...bracketMatches.filter(m => m.r === r && m.w != null && advancing.has(m.w)));
+    }
+
+    const playoffRecord = new Map<number, { wins: number; losses: number }>();
+    for (const m of titleBracket) {
+      for (const id of [m.t1, m.t2]) {
+        if (id != null && !playoffRecord.has(id)) playoffRecord.set(id, { wins: 0, losses: 0 });
+      }
+      if (m.w != null && m.l != null) {
+        playoffRecord.get(m.w)!.wins++;
+        playoffRecord.get(m.l)!.losses++;
+      }
+    }
+    const playoffs = [...playoffRecord].flatMap(([rosterId, rec]) => {
+      const team = teams.find(t => t.rosterId === rosterId);
+      return team ? [{ displayName: team.displayName, ...rec }] : [];
+    });
+
     // Mapear standings completos
     const standings = sortedTeams.map(team => ({
       rank: team.rank,
@@ -1306,7 +1337,8 @@ async function fetchSeasonData(
       champion,
       runnerUp,
       standings,
-      bracket
+      bracket,
+      playoffs
     };
   } catch (error) {
     console.error(`Erro ao buscar dados da temporada ${year} (${leagueId}):`, error);
@@ -1396,7 +1428,8 @@ export async function GET(request: NextRequest) {
     const response: HistoryResponse = {
       leagueType,
       seasons: allSeasons,
-      matches: allMatches
+      matches: allMatches,
+      allTime: buildAllTime(allSeasons)
     };
     
     return NextResponse.json(response);

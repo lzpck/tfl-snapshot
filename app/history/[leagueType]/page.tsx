@@ -7,6 +7,7 @@ import { HistoryData } from '../types';
 import { ChampionsList } from '../components/ChampionsList';
 import { AnnualStandings } from '../components/AnnualStandings';
 import { HeadToHead } from '../components/HeadToHead';
+import { AllTimeTable } from '../components/AllTimeTable';
 
 export default function HistoryPage() {
   const params = useParams();
@@ -15,7 +16,7 @@ export default function HistoryPage() {
   const [historyData, setHistoryData] = useState<HistoryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'champions' | 'standings' | 'matchups'>('champions');
+  const [activeTab, setActiveTab] = useState<'champions' | 'standings' | 'matchups' | 'alltime'>('champions');
 
   // Validar leagueType
   const isValidLeagueType = ['redraft', 'dynasty'].includes(leagueType);
@@ -129,6 +130,17 @@ export default function HistoryPage() {
              >
                Confrontos
              </button>
+             <button
+               onClick={() => setActiveTab('alltime')}
+               className={`
+                 px-6 py-2 rounded-md text-sm font-medium transition-all duration-200
+                 ${activeTab === 'alltime'
+                   ? 'bg-slate-800 text-white shadow-sm ring-1 ring-white/10'
+                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}
+               `}
+             >
+               All-Time
+             </button>
           </div>
 
           {/* Tab Content */}
@@ -143,6 +155,10 @@ export default function HistoryPage() {
 
              {activeTab === 'matchups' && historyData && (
                 <HeadToHead matches={historyData.matches || []} />
+             )}
+
+             {activeTab === 'alltime' && historyData && (
+                <AllTimeTable rows={historyData.allTime || []} />
              )}
           </div>
 
